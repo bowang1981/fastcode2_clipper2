@@ -1,3 +1,4 @@
+How to build this on ECE machines.
 Steps to build baseline
 1. Switch to the new compiler with the following command
     scl enable devtoolset-12 bash
