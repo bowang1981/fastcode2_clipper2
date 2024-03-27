@@ -11,7 +11,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 option(CLIPPER2_UTILS "Build utilities" ON)
 option(CLIPPER2_EXAMPLES "Build examples" ON)
-option(CLIPPER2_TESTS "Build tests" ON)
+option(CLIPPER2_TESTS "Build tests" OFF)
 option(USE_EXTERNAL_GTEST "Use system-wide installed GoogleTest" OFF)
 option(USE_EXTERNAL_GBENCHMARK "Use the googlebenchmark" OFF) 
 option(BUILD_SHARED_LIBS "Build shared libs" OFF)
@@ -262,6 +262,8 @@ endif()
 if(USE_EXTERNAL_GBENCHMARK)
   add_subdirectory(BenchMark)
 endif()
+
+add_subdirectory(fastcodeBM)
 
 set(CLIPPER2_PCFILES "")
 foreach(lib ${CLIPPER2_LIBS})
