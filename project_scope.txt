@@ -1,0 +1,5 @@
+The scope will do the parallization on the following:
+1. Area calculation on massive polygons.
+2. RectClip
+3. Offset 
+a. For CUDA version, the laststep of UNION the result will be on CPU only.
