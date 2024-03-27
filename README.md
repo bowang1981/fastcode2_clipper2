@@ -13,5 +13,6 @@ make -j 8
 6. build our benchmark folder under CPP/fastcodeBM, make sure you are in build_root/fastcodeBM
 cd fastcodeBM
 make
-7. run the BM test: ./bm_clip
+
+8. run the BM test: ./bm_clip
 
