@@ -16,3 +16,8 @@ make
 
 8. run the BM test: ./bm_clip
 
+Code structure
+1. We have 3 folders, baseline, openmp, and cuda, the codes are all copied from baseline and we start from there to add modification for openmp and cuda.
+2. All the tests are put under fastcodeBM, which will be duplicated at all the 3 folders(baseline, openmp and cuda)
+3. To generate the test set, please use the class TestGenerator's functions.
+
