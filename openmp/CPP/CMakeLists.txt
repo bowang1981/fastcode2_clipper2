@@ -10,12 +10,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 option(CLIPPER2_UTILS "Build utilities" ON)
-option(CLIPPER2_EXAMPLES "Build examples" ON)
+option(CLIPPER2_EXAMPLES "Build examples" OFF)
 option(CLIPPER2_TESTS "Build tests" OFF)
 option(USE_EXTERNAL_GTEST "Use system-wide installed GoogleTest" OFF)
 option(USE_EXTERNAL_GBENCHMARK "Use the googlebenchmark" OFF) 
 option(BUILD_SHARED_LIBS "Build shared libs" OFF)
-set(CLIPPER2_USINGZ "ON" CACHE STRING "Build Clipper2Z, either \"ON\" or \"OFF\" or \"ONLY\"")
+set(CLIPPER2_USINGZ "OFF" CACHE STRING "Build Clipper2Z, either \"ON\" or \"OFF\" or \"ONLY\"")
 set(CLIPPER2_MAX_PRECISION 8 CACHE STRING "Maximum precision allowed for double to int64 scaling")
 
 if (APPLE)
@@ -23,6 +23,9 @@ if (APPLE)
 endif ()
 
 include(GNUInstallDirs)
+
+find_package(OpenMP)
+
 
 set(CLIPPER2_INC_FOLDER ${PROJECT_SOURCE_DIR}/Clipper2Lib/include/clipper2)
 configure_file(clipper.version.in ${CLIPPER2_INC_FOLDER}/clipper.version.h)
@@ -65,6 +68,7 @@ if (NOT (CLIPPER2_USINGZ STREQUAL "ONLY"))
   else()
     target_compile_options(Clipper2 PRIVATE -Wall -Wextra -Wpedantic -Werror)
     target_link_libraries(Clipper2 PUBLIC -lm)
+    target_link_libraries(Clipper2 PUBLIC OpenMP::OpenMP_CXX)
   endif()
 endif()
 

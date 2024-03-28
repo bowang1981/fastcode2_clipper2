@@ -5,7 +5,9 @@
 #include <sstream>
 #include <fstream>
 #include <string>
+#include <stdio.h>
 #include "clipper2/clipper.h"
+#include <omp.h>
 #include "../../Utils/clipper.svg.h"
 #include "../../Utils/ClipFileLoad.h"
 #include "../../Utils/clipper.svg.utils.h"
@@ -26,8 +28,19 @@ void MeasurePerformance(int min, int max, int step);
 const int width = 800, height = 600, margin = 120;
 
 
+double test_omp()
+{
+    double res = 0;
+    #pragma  omp parallel for reduction(+:res) num_threads(4)
+    for (int i = 0 ; i < 100; ++i) {
+        res += i * i;
+    }
+    return res;
+}
+
 int main(int argc, char* argv[])
 {
+    cout << test_omp() << std::endl;
   srand((unsigned)time(0));
   
   DoEllipses(500);      
