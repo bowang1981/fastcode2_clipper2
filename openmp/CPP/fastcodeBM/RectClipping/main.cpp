@@ -7,6 +7,7 @@
 //
 #include "TestGenerator.h"
 #include "RectClipping.h"
+#include "OffsettingTest.h"
 #include <omp.h>
 #include <stdio.h>
 using namespace  std;
@@ -25,4 +26,6 @@ int main(int argc, char* argv[])
     srand((unsigned)time(0));
     RectClippingTest::DoRectanglesTest(500);
     RectClippingTest::DoPolygonTest(500);
+    OffsettingTest::doOffsetTest();
+    OffsettingTest::doOffsetTest1();
 }
