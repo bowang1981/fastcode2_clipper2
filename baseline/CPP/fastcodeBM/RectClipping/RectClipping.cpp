@@ -45,8 +45,7 @@ namespace RectClippingTest {
         }
 
 
-        void DoPolygonTest(int count)
-        {
+        void DoPolygonTest(int count) {
             Paths64 sub, clp, sol;
 
             // generate random poly
@@ -55,9 +54,13 @@ namespace RectClippingTest {
             sub.push_back(MakeRandomPoly(width, height, count));
 
             //////////////////////////////////
-            sol = RectClip(rect, sub);
+            {
+                Timer t;
+                sol = RectClip(rect, sub);
+                std::cout << "RectClip on complex polygon: "<< t.elapsed_str();
+            }
             //////////////////////////////////
-
+/*
             FillRule fr = FillRule::EvenOdd;
             double frac = sol.size() ? 1.0 / sol.size() : 1.0;
             double cum_frac = 0;
@@ -72,7 +75,7 @@ namespace RectClippingTest {
                 svg.AddPath(sol_path, false, fr, c2, c, 1.2, false);
             }
             svg.SaveToFile("rectclip3.svg", width, height, 0);
-            System("rectclip3.svg");
+            System("rectclip3.svg");*/
         }
 
         void MeasurePerformance(int min, int max, int step)
