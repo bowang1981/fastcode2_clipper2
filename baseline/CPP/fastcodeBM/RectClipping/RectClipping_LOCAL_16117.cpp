@@ -13,7 +13,6 @@
 #include "../../Utils/clipper.svg.utils.h"
 #include "../../Utils/Colors.h"
 #include "../../Utils/Timer.h"
-#include "rdtsc.h"
 
 using namespace std;
 using namespace Clipper2Lib;
@@ -34,18 +33,7 @@ namespace RectClippingTest {
             clp.push_back(rect.AsPath());
             sub = TestGenerator::CreateRectangles(cnt);
 
-            tsc_counter t0, t1;
-            long long sum1 = 0;
-            int runs = 10;
-            //////////////////////////////////
-            for (int i = 0; i < runs; i++) {
-                RDTSC(t0);
-                sol = RectClip(rect, sub);
-                RDTSC(t1);
-                sum1 += (COUNTER_DIFF(t1, t0, CYCLES));
-            }
-            //////////////////////////////////
-            std::cout << "RectClipping: PolygonTest: " << static_cast<double>(sum1) / runs << " cycles" << std::endl;
+            sol = RectClip(rect, sub);
 
             FillRule fr = FillRule::EvenOdd;
             SvgWriter svg;
@@ -53,12 +41,11 @@ namespace RectClippingTest {
             svg.AddPaths(clp, false, fr, 0x10FFAA00, 0xFFFF0000, 1, false);
             svg.AddPaths(sol, false, fr, 0x8066FF66, 0xFF006600, 1, false);
             svg.SaveToFile("rectclip2.svg", 800, 600, 0);
-            // System("rectclip2.svg");
+            System("rectclip2.svg");
         }
 
 
-        void DoPolygonTest(int count)
-        {
+        void DoPolygonTest(int count) {
             Paths64 sub, clp, sol;
 
             // generate random poly
@@ -66,19 +53,14 @@ namespace RectClippingTest {
             clp.push_back(rect.AsPath());
             sub.push_back(MakeRandomPoly(width, height, count));
 
-            tsc_counter t0, t1;
-            long long sum1 = 0;
-            int runs = 10;
             //////////////////////////////////
-            for (int i = 0; i < runs; i++) {
-                RDTSC(t0);
+            {
+                Timer t;
                 sol = RectClip(rect, sub);
-                RDTSC(t1);
-                sum1 += (COUNTER_DIFF(t1, t0, CYCLES));
+                std::cout << "RectClip on complex polygon: "<< t.elapsed_str();
             }
             //////////////////////////////////
-            std::cout << "RectClipping: PolygonTest: " << static_cast<double>(sum1) / runs << " cycles" << std::endl;
-
+/*
             FillRule fr = FillRule::EvenOdd;
             double frac = sol.size() ? 1.0 / sol.size() : 1.0;
             double cum_frac = 0;
@@ -93,7 +75,7 @@ namespace RectClippingTest {
                 svg.AddPath(sol_path, false, fr, c2, c, 1.2, false);
             }
             svg.SaveToFile("rectclip3.svg", width, height, 0);
-            // System("rectclip3.svg");
+            System("rectclip3.svg");*/
         }
 
         void MeasurePerformance(int min, int max, int step)

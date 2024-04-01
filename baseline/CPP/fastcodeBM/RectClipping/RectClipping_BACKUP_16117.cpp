@@ -37,15 +37,13 @@ namespace RectClippingTest {
             tsc_counter t0, t1;
             long long sum1 = 0;
             int runs = 10;
-            //////////////////////////////////
             for (int i = 0; i < runs; i++) {
                 RDTSC(t0);
                 sol = RectClip(rect, sub);
                 RDTSC(t1);
                 sum1 += (COUNTER_DIFF(t1, t0, CYCLES));
             }
-            //////////////////////////////////
-            std::cout << "RectClipping: PolygonTest: " << static_cast<double>(sum1) / runs << " cycles" << std::endl;
+            std::cout << "RectClipping: RectanglesTest: " << static_cast<double>(sum1) / runs << " cycles" << std::endl;
 
             FillRule fr = FillRule::EvenOdd;
             SvgWriter svg;
@@ -57,15 +55,13 @@ namespace RectClippingTest {
         }
 
 
-        void DoPolygonTest(int count)
-        {
+        void DoPolygonTest(int count) {
             Paths64 sub, clp, sol;
 
             // generate random poly
             Rect64 rect = Rect64(margin, margin, width - margin, height - margin);
             clp.push_back(rect.AsPath());
             sub.push_back(MakeRandomPoly(width, height, count));
-
             tsc_counter t0, t1;
             long long sum1 = 0;
             int runs = 10;
@@ -79,6 +75,18 @@ namespace RectClippingTest {
             //////////////////////////////////
             std::cout << "RectClipping: PolygonTest: " << static_cast<double>(sum1) / runs << " cycles" << std::endl;
 
+<<<<<<< HEAD
+            //////////////////////////////////
+            {
+                Timer t;
+                sol = RectClip(rect, sub);
+                std::cout << "RectClip on complex polygon: "<< t.elapsed_str();
+            }
+            //////////////////////////////////
+/*
+=======
+
+>>>>>>> e4b31d5db7b0abd29d4d6bf9511fc4512e53faf1
             FillRule fr = FillRule::EvenOdd;
             double frac = sol.size() ? 1.0 / sol.size() : 1.0;
             double cum_frac = 0;
@@ -93,7 +101,11 @@ namespace RectClippingTest {
                 svg.AddPath(sol_path, false, fr, c2, c, 1.2, false);
             }
             svg.SaveToFile("rectclip3.svg", width, height, 0);
+<<<<<<< HEAD
+            System("rectclip3.svg");*/
+=======
             // System("rectclip3.svg");
+>>>>>>> e4b31d5db7b0abd29d4d6bf9511fc4512e53faf1
         }
 
         void MeasurePerformance(int min, int max, int step)

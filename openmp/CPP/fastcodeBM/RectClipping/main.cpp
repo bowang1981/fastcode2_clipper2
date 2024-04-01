@@ -24,10 +24,11 @@ double test_omp()
 }
 int main(int argc, char* argv[])
 {
-    cout << test_omp() << std::endl;
+    // cout << test_omp() << std::endl;
     srand((unsigned)time(0));
-    // RectClippingTest::DoRectanglesTest(500);
-    // RectClippingTest::DoPolygonTest(500);
+
+    RectClippingTest::DoRectanglesTest(5000000);
+    RectClippingTest::DoPolygonTest(50000);
     // OffsettingTest::doOffsetTest();
     // OffsettingTest::doOffsetTest1();
     // UnionTest::DoSquares();

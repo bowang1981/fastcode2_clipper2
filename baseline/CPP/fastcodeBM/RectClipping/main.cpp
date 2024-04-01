@@ -9,9 +9,11 @@
 int main(int argc, char* argv[])
 {
     srand((unsigned)time(0));
-    // RectClippingTest::DoRectanglesTest(500);
-    // RectClippingTest::DoPolygonTest(10);
-    //OffsettingTest::doOffsetTest1();
+
+    RectClippingTest::DoRectanglesTest(5000000);
+    RectClippingTest::DoPolygonTest(50000);
+    OffsettingTest::doOffsetTest1();
     UnionTest::DoSquares();
     UnionTest::DoPolygons();
+
 }

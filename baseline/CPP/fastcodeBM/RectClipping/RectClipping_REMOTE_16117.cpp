@@ -37,15 +37,13 @@ namespace RectClippingTest {
             tsc_counter t0, t1;
             long long sum1 = 0;
             int runs = 10;
-            //////////////////////////////////
             for (int i = 0; i < runs; i++) {
                 RDTSC(t0);
                 sol = RectClip(rect, sub);
                 RDTSC(t1);
                 sum1 += (COUNTER_DIFF(t1, t0, CYCLES));
             }
-            //////////////////////////////////
-            std::cout << "RectClipping: PolygonTest: " << static_cast<double>(sum1) / runs << " cycles" << std::endl;
+            std::cout << "RectClipping: RectanglesTest: " << static_cast<double>(sum1) / runs << " cycles" << std::endl;
 
             FillRule fr = FillRule::EvenOdd;
             SvgWriter svg;
@@ -65,7 +63,6 @@ namespace RectClippingTest {
             Rect64 rect = Rect64(margin, margin, width - margin, height - margin);
             clp.push_back(rect.AsPath());
             sub.push_back(MakeRandomPoly(width, height, count));
-
             tsc_counter t0, t1;
             long long sum1 = 0;
             int runs = 10;
@@ -78,6 +75,7 @@ namespace RectClippingTest {
             }
             //////////////////////////////////
             std::cout << "RectClipping: PolygonTest: " << static_cast<double>(sum1) / runs << " cycles" << std::endl;
+
 
             FillRule fr = FillRule::EvenOdd;
             double frac = sol.size() ? 1.0 / sol.size() : 1.0;
