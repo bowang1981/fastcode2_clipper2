@@ -79,14 +79,14 @@ namespace Clipper2Lib {
         return a * 0.5;
     }
 
-
-    inline double Area_OpenMP(const Paths64& paths)
+// In this version, we do the parallization in each polygon. We'll have another version on high level.
+    inline double Area_OpenMP(const Paths64& paths, int thread_num)
     {
         double a = 0.0;
         for (Paths64::const_iterator paths_iter = paths.cbegin();
              paths_iter != paths.cend(); ++paths_iter)
         {
-            a += Area_OpenMP(*paths_iter);
+            a += Area_OpenMP(*paths_iter, thread_num);
         }
         return a;
     }

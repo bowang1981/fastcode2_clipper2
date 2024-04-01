@@ -27,24 +27,25 @@ namespace UnionTest {
 
         //SaveTest("squares.txt", false, &subjects, nullptr, nullptr, 0, 0, ClipType::Union, FillRule::NonZero);
         std::vector<Paths64> subjectsVec;
-        for (int i = 1; i < 8; ++i)
+        std::vector<int> nums = {1, 2, 4, 8, 16, 32};
+        for (auto num : nums)
         {
             Timer t;
-            solution = Union_OpenMP(subjects, fillrule, i);
-            std::cout << "thread_num[" << i << "]: Union_OpenMP on massive polygons: "<< t.elapsed_str();
+            solution = Union_OpenMP(subjects, fillrule, num);
+            std::cout << "thread_num[" << num << "]: Union_OpenMP on massive polygons: "
+                      << t.elapsed_str() << std::endl;
         }
 
-        TestGenerator::SaveAndDisplay(solution, fillrule, "uniontest_openmp.svg");
+       // TestGenerator::SaveAndDisplay(solution, fillrule, "uniontest_openmp.svg");
 
         {
             Timer t;
             solution = Union(subjects, fillrule);
-            std::cout << "Union on massive polygons: "<< t.elapsed_str();
+            std::cout << "Union on massive polygons: "<< t.elapsed_str() << std::endl;
         }
 
-        // subjects = SimplifyPaths(subjects, 5);
 
-        TestGenerator::SaveAndDisplay(solution, fillrule, "uniontest.svg");
+       // TestGenerator::SaveAndDisplay(solution, fillrule, "uniontest.svg");
 
 
     }
@@ -58,23 +59,27 @@ namespace UnionTest {
         subjects = TestGenerator::MakeNoSelfIntesectPolygons(polyCount, w, h, 800);
 
         // TestGenerator::SaveAndDisplay(subjects, fillrule, "uniontestinput.svg");
-        // for (int i = 0; i < 1; ++i)
+        std::vector<int> nums = {1, 2, 4, 8, 16, 32, 40, 48, 64};
+
+
+
+        // subjects = SimplifyPaths(subjects, 5);
+
+        // TestGenerator::SaveAndDisplay(solution, fillrule, "uniontestoutput.svg");
+        for (auto num : nums)
         {
-            std::cout << "staart uunion  ppolyygonns" << std::endl;
+            Timer t;
+            solution = Union_OpenMP(subjects, fillrule, num);
+            std::cout << "thread num [" << num << "] Union_OpenMP on massive polygons: "
+            << t.elapsed_str() << std::endl;
+        }
+
+        {
+            std::cout << "start uunion  ppolyygonns" << std::endl;
             Timer t;
             solution = Union(subjects, fillrule);
             std::cout << "Union on massive polygons: "<< t.elapsed_str() << std::endl;
         }
-
-        // subjects = SimplifyPaths(subjects, 5);
-
-        TestGenerator::SaveAndDisplay(solution, fillrule, "uniontestoutput.svg");
-
-        {
-            Timer t;
-            solution = Union_OpenMP(subjects, fillrule, 4);
-            std::cout << "Union_OpenMP on massive polygons: "<< t.elapsed_str() << std::endl;
-        }
-        TestGenerator::SaveAndDisplay(solution, fillrule, "uniontest_openmp.svg");
+        // TestGenerator::SaveAndDisplay(solution, fillrule, "uniontest_openmp.svg");
     }
 };

@@ -33,6 +33,7 @@ namespace AreaCalcTest {
     }
 
     void DoTestAreaCalc2() {
+        std::cout << "Test Area Calculation on a set of polygons" << std::endl;
         Paths64 subjects = TestGenerator::MakeNoSelfIntesectPolygons(1000, 500000, 50000, 20000);
         {
             std::cout << "start calc  area" << std::endl;
@@ -42,12 +43,14 @@ namespace AreaCalcTest {
             std::cout << "Area on complex polygons: " << t.elapsed_str() << std::endl;
             cout << "Area: " << setprecision(10) << area << std::endl;
         }
+        std::vector<int> nums = { 1, 2, 4, 8, 16, 32, 40, 48, 64};
+        for (auto num : nums)
         {
             std::cout << "start calc  area(openmp)" << std::endl;
             Timer t;
 
-            double area = Area_OpenMP(subjects);
-            std::cout << "Area_openMP on complex polygons: " << t.elapsed_str() << std::endl;
+            double area = Area_OpenMP(subjects, num);
+            std::cout << "threadnum [" << num << "]: Area_openMP on complex polygons: " << t.elapsed_str() << std::endl;
             cout << "Area: " << setprecision(10)<< area << std::endl;
         }
     }

@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
     // OffsettingTest::doOffsetTest();
     // OffsettingTest::doOffsetTest1();
     // UnionTest::DoSquares();
-    // UnionTest::DoPolygons();
-    AreaCalcTest::DoTestAreaCalc();
+    UnionTest::DoPolygons();
+    // AreaCalcTest::DoTestAreaCalc();
     AreaCalcTest::DoTestAreaCalc2();
 }
