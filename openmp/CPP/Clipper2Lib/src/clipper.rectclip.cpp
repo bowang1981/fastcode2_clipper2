@@ -944,12 +944,12 @@ namespace Clipper2Lib {
   {
     Paths64 result;
     if (rect_.IsEmpty()) return result;
-    #pragma omp parallel for num_threads(4)
+    #pragma omp parallel for num_threads(16)
     for (const Path64& path : paths)
     {      
 
       Rect64 path_bounds = GetBounds(path);
-
+      OutPt2List partial_results = OutPt2List();
       if (path.size() < 3) continue;
       // path_bounds_ = GetBounds(path);
 
@@ -959,15 +959,12 @@ namespace Clipper2Lib {
       {
         // the path must be completely inside rect_
         #pragma omp critical
-        {
-          result.push_back(path);
-        }
-        continue;
+        result.push_back(path);
+        continue; // this thread is just ending/finishied
       }
 
-      
       std::vector<Location> start_locs = std::vector<Location>();
-      OutPt2List partial_results = OutPt2List();
+
       OutPt2List edges[8];
       std::deque<OutPt2> op_container = std::deque<OutPt2>();
       ExecuteInternal(path, path_bounds, start_locs, partial_results, op_container, edges);
@@ -976,14 +973,21 @@ namespace Clipper2Lib {
       for (int i = 0; i < 4; ++i)
         TidyEdges(i, edges[i * 2], edges[i * 2 + 1], partial_results);
 
-      for (OutPt2*& op :  partial_results)
+      Paths64 tmpResults;
+      for (OutPt2*& op : partial_results)
       {
-        Path64 tmp = GetPath(op);
-        if (!tmp.empty())
-        #pragma omp critical
-        {
-          result.emplace_back(tmp);
-        }
+          Path64 tmp = GetPath(op);
+          if (!tmp.empty())
+          {
+              tmpResults.emplace_back(tmp);
+          }
+      }
+      #pragma omp critical
+      {
+          for (Path64 tmp : tmpResults)
+          {
+              result.emplace_back(tmp);
+          }
       }
     }
     return result;
