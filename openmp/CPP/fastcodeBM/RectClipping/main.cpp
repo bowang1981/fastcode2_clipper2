@@ -13,15 +13,17 @@
 #include <omp.h>
 #include <stdio.h>
 using namespace  std;
-double test_omp()
-{
-    double res = 0;
-#pragma  omp parallel for reduction(+:res) num_threads(4)
-    for (int i = 0 ; i < 100; ++i) {
-        res += i * i;
-    }
-    return res;
-}
+
+
+// double test_omp()
+// {
+//     double res = 0;
+// #pragma  omp parallel for reduction(+:res) num_threads(16)
+//     for (int i = 0 ; i < 100; ++i) {
+//         res += i * i;
+//     }
+//     return res;
+// }
 int main(int argc, char* argv[])
 {
     // cout << test_omp() << std::endl;

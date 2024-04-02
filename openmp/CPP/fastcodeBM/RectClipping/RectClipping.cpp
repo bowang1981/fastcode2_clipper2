@@ -45,7 +45,7 @@ namespace RectClippingTest {
                 sum1 += (COUNTER_DIFF(t1, t0, CYCLES));
             }
             //////////////////////////////////
-            std::cout << "RectClipping: PolygonTest: " << static_cast<double>(sum1) / runs << " cycles" << std::endl;
+            std::cout << "RectClipping: RectangleTest: " << static_cast<double>(sum1) / runs << " cycles" << std::endl;
 
             FillRule fr = FillRule::EvenOdd;
             SvgWriter svg;
@@ -68,7 +68,7 @@ namespace RectClippingTest {
 
             tsc_counter t0, t1;
             long long sum1 = 0;
-            int runs = 10;
+            int runs = 5;
             //////////////////////////////////
             for (int i = 0; i < runs; i++) {
                 RDTSC(t0);
