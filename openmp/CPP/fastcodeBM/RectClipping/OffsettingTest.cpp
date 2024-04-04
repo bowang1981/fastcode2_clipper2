@@ -26,7 +26,7 @@ namespace OffsettingTest {
 
     void doOffsetTest(int cnt, int runs) {
         Paths64 subject, solution;
-        long long jiffies;
+        long long jiffies = 0;
         tsc_counter t0, t1;
         for (int i = 0; i < runs; ++i) {
             subject = TestGenerator::CreateRectangles(cnt);
