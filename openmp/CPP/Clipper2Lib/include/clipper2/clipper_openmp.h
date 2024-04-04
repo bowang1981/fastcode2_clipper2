@@ -91,7 +91,23 @@ namespace Clipper2Lib {
         return a;
     }
 
-
+    inline double Area_OpenMP(const Paths64& paths)
+    {
+        double totalSum = 0.0;
+        for (auto p = paths.cbegin(); p != paths.cend(); ++p){
+            if(p->size()<3){
+                continue;
+            }
+            double localSum = 0.0;
+            auto it2 = p->cend()-1;
+            for(auto it1 = p->cbegin();it1 != p->cend(); ++it1){
+                localSum+= (it1->x + it2->x) * (it1->y - it2->y);
+                it2 = it1;
+            }
+            totalSum += localSum;
+        }
+        return totalSum/2;
+    }
 }
 
 #endif //FASTCODE2_CLIPPER2_CLIPPER_OPENMP_H
