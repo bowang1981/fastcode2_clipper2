@@ -94,6 +94,8 @@ namespace Clipper2Lib {
     inline double Area_OpenMP(const Paths64& paths)
     {
         double totalSum = 0.0;
+
+        #pragma omp parallel for reduction(+:totalSum)
         for (auto p = paths.cbegin(); p != paths.cend(); ++p){
             if(p->size()<3){
                 continue;
@@ -104,6 +106,8 @@ namespace Clipper2Lib {
                 localSum+= (it1->x + it2->x) * (it1->y - it2->y);
                 it2 = it1;
             }
+            
+            #pragma omp atomic
             totalSum += localSum;
         }
         return totalSum/2;

@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
     // // AreaCalcTest::DoTestAreaCalc();
     // AreaCalcTest::DoTestAreaCalc2();
 
-    AreaCalcTest::DoTestAreaCalc();
+    // AreaCalcTest::DoTestAreaCalc();
     // AreaCalcTest::DoTestAreaCalc2();
        
     AreaCalcTest::DoTestAreaCalc3();
