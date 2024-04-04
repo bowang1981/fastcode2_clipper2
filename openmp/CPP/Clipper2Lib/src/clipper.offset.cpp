@@ -556,19 +556,19 @@ void ClipperOffset::DoGroupOffset(Group& group)
 		steps_per_rad_ = steps_per_360 / (2 * PI);
 	}
 
-	std::vector<Rect64>::const_iterator path_rect_it = group.bounds_list.cbegin();
-	std::vector<bool>::const_iterator is_hole_it = group.is_hole_list.cbegin();
-	Paths64::const_iterator path_in_it = group.paths_in.cbegin();
-	for ( ; path_in_it != group.paths_in.cend(); ++path_in_it, ++path_rect_it, ++is_hole_it)
+	// bounds_list, is_hole_list, and paths_in should all have the same size
+	// Original implementation uses iterators for the three sequences
+	// Change them to a loop counter to facilitate OpenMP or CUDA optimization...
+	for (size_t i = 0; i < group.paths_in.size(); ++i)
 	{
-		if (!path_rect_it->IsValid()) continue;
-		Path64::size_type pathLen = path_in_it->size();
+		if (!group.bounds_list[i].IsValid()) continue;
+		Path64::size_type pathLen = group.paths_in[i].size();
 		path_out.clear();
 
 		if (pathLen == 1) // single point
 		{
 			if (group_delta_ < 1) continue;
-			const Point64& pt = (*path_in_it)[0];
+			const Point64& pt = group.paths_in[i][0];
 			//single vertex so build a circle or square ...
 			if (group.join_type == JoinType::Round)
 			{
@@ -594,8 +594,8 @@ void ClipperOffset::DoGroupOffset(Group& group)
 
 		// when shrinking outer paths, make sure they can shrink this far (#593)
 		// also when shrinking holes, make sure they too can shrink this far (#715)
-		if ((group_delta_ > 0) == ToggleBoolIf(*is_hole_it, group.is_reversed) &&
-			(std::min(path_rect_it->Width(), path_rect_it->Height()) <= -group_delta_ * 2) )
+		if ((group_delta_ > 0) == ToggleBoolIf(group.is_hole_list[i], group.is_reversed) &&
+			(std::min(group.bounds_list[i].Width(), group.bounds_list[i].Height()) <= -group_delta_ * 2) )
 				  continue;
 
 		if ((pathLen == 2) && (group.end_type == EndType::Joined))
@@ -603,10 +603,10 @@ void ClipperOffset::DoGroupOffset(Group& group)
 			  EndType::Round : 
 			  EndType::Square;
 
-		BuildNormals(*path_in_it);
-		if (end_type_ == EndType::Polygon) OffsetPolygon(group, *path_in_it);
-		else if (end_type_ == EndType::Joined) OffsetOpenJoined(group, *path_in_it);
-		else OffsetOpenPath(group, *path_in_it);
+		BuildNormals(group.paths_in[i]);
+		if (end_type_ == EndType::Polygon) OffsetPolygon(group, group.paths_in[i]);
+		else if (end_type_ == EndType::Joined) OffsetOpenJoined(group, group.paths_in[i]);
+		else OffsetOpenPath(group, group.paths_in[i]);
 	}
 }
 
