@@ -56,12 +56,6 @@ typedef union
 	#define CPUID() \
 		ASM VOLATILE ("cpuid" : : "a" (0) : "bx", "cx", "dx" )
 #endif
-	int rdtsc_works(void) {
-		tsc_counter t0,t1;
-		RDTSC(t0);
-		RDTSC(t1);
-		return COUNTER_DIFF(t1,t0,1) > 0;
-	}
 /* ======================== WIN 32/64 ======================= */
 #else
 	#define myInt64 signed __int64
@@ -95,16 +89,6 @@ typedef union
 	}
 
 #endif
-	int rdtsc_works(void) {
-		tsc_counter t0,t1;
-		__try {
-		    RDTSC(t0);
-		    RDTSC(t1);
-		} __except ( 1) {
-		    return 0;
-		}
-		return COUNTER_DIFF(t1,t0,1) > 0;
-	}
 #endif /* WIN 32/64 */
 
 /*
