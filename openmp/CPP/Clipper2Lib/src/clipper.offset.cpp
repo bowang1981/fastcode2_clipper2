@@ -379,7 +379,7 @@ void ClipperOffset::DoRound(const Path64& path, size_t j, size_t k, double angle
 	path_out.push_back(GetPerpendic(path[j], norms[j], group_delta_));
 }
 
-void ClipperOffset::OffsetPoint(Group& group, const Path64& path, size_t j, size_t k)
+void ClipperOffset::OffsetPoint(const Group& group, const Path64& path, size_t j, size_t k)
 {
 	// Let A = change in angle where edges join
 	// A == 0: ie no change in angle (flat join)
@@ -432,7 +432,7 @@ void ClipperOffset::OffsetPoint(Group& group, const Path64& path, size_t j, size
 		DoSquare(path, j, k);
 }
 
-void ClipperOffset::OffsetPolygon(Group& group, const Path64& path)
+void ClipperOffset::OffsetPolygon(const Group& group, const Path64& path)
 {
 	path_out.clear();
 	for (Path64::size_type j = 0, k = path.size() -1; j < path.size(); k = j, ++j)
@@ -440,7 +440,7 @@ void ClipperOffset::OffsetPolygon(Group& group, const Path64& path)
 	solution.push_back(path_out);
 }
 
-void ClipperOffset::OffsetOpenJoined(Group& group, const Path64& path)
+void ClipperOffset::OffsetOpenJoined(const Group& group, const Path64& path)
 {
 	OffsetPolygon(group, path);
 	Path64 reverse_path(path);
@@ -455,7 +455,7 @@ void ClipperOffset::OffsetOpenJoined(Group& group, const Path64& path)
 	OffsetPolygon(group, reverse_path);
 }
 
-void ClipperOffset::OffsetOpenPath(Group& group, const Path64& path)
+void ClipperOffset::OffsetOpenPath(const Group& group, const Path64& path)
 {
 	// do the line start cap
 	if (deltaCallback64_) group_delta_ = deltaCallback64_(path, norms, 0, 0);

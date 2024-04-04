@@ -74,10 +74,10 @@ private:
 	void DoMiter(const Path64& path, size_t j, size_t k, double cos_a);
 	void DoRound(const Path64& path, size_t j, size_t k, double angle);
 	void BuildNormals(const Path64& path);
-	void OffsetPolygon(Group& group, const Path64& path);
-	void OffsetOpenJoined(Group& group, const Path64& path);
-	void OffsetOpenPath(Group& group, const Path64& path);
-	void OffsetPoint(Group& group, const Path64& path, size_t j, size_t k);
+	void OffsetPolygon(const Group& group, const Path64& path);
+	void OffsetOpenJoined(const Group& group, const Path64& path);
+	void OffsetOpenPath(const Group& group, const Path64& path);
+	void OffsetPoint(const Group& group, const Path64& path, size_t j, size_t k);
 	void DoGroupOffset(Group &group);
 	void ExecuteInternal(double delta);
 public:
