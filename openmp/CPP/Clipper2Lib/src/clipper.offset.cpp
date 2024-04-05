@@ -8,8 +8,11 @@
 *******************************************************************************/
 
 #include <cmath>
+#include <cstdio>
+#include <omp.h>
 #include "clipper2/clipper.h"
 #include "clipper2/clipper.offset.h"
+#include "rdtsc.h"
 
 namespace Clipper2Lib {
 
@@ -205,8 +208,9 @@ void ClipperOffset::AddPaths(const Paths64 &paths, JoinType jt_, EndType et_)
 	groups_.push_back(Group(paths, jt_, et_));
 }
 
-void ClipperOffset::BuildNormals(const Path64& path)
+void ClipperOffset::BuildNormals(const Path64& path, int thr_id)
 {
+	PathD& norms = norm_threads[thr_id];
 	norms.clear();
 	norms.reserve(path.size());
 	if (path.size() == 0) return;
@@ -263,8 +267,9 @@ PointD IntersectPoint(const PointD& pt1a, const PointD& pt1b,
 	}
 }
 
-void ClipperOffset::DoBevel(const Path64& path, size_t j, size_t k)
+void ClipperOffset::DoBevel(const Path64& path, size_t j, size_t k, int thr_id)
 {
+	PathD& norms = norm_threads[thr_id];
 	PointD pt1, pt2;
 	if (j == k)
 	{
@@ -277,12 +282,13 @@ void ClipperOffset::DoBevel(const Path64& path, size_t j, size_t k)
 		pt1 = PointD(path[j].x + group_delta_ * norms[k].x, path[j].y + group_delta_ * norms[k].y);
 		pt2 = PointD(path[j].x + group_delta_ * norms[j].x, path[j].y + group_delta_ * norms[j].y);
 	}
-	path_out.push_back(Point64(pt1));
-	path_out.push_back(Point64(pt2));
+	path_out_threads[thr_id].push_back(Point64(pt1));
+	path_out_threads[thr_id].push_back(Point64(pt2));
 }
 
-void ClipperOffset::DoSquare(const Path64& path, size_t j, size_t k)
+void ClipperOffset::DoSquare(const Path64& path, size_t j, size_t k, int thr_id)
 {
+	PathD& norms = norm_threads[thr_id];
 	PointD vec;
 	if (j == k) 
 		vec = PointD(norms[j].y, -norms[j].x);
@@ -309,8 +315,8 @@ void ClipperOffset::DoSquare(const Path64& path, size_t j, size_t k)
 		pt.z = ptQ.z;
 #endif
 		//get the second intersect point through reflecion
-		path_out.push_back(Point64(ReflectPoint(pt, ptQ)));
-		path_out.push_back(Point64(pt));
+		path_out_threads[thr_id].push_back(Point64(ReflectPoint(pt, ptQ)));
+		path_out_threads[thr_id].push_back(Point64(pt));
 	}
 	else
 	{
@@ -319,29 +325,31 @@ void ClipperOffset::DoSquare(const Path64& path, size_t j, size_t k)
 #ifdef USINGZ
 		pt.z = ptQ.z;
 #endif
-		path_out.push_back(Point64(pt));
+		path_out_threads[thr_id].push_back(Point64(pt));
 		//get the second intersect point through reflecion
-		path_out.push_back(Point64(ReflectPoint(pt, ptQ)));
+		path_out_threads[thr_id].push_back(Point64(ReflectPoint(pt, ptQ)));
 	}
 }
 
-void ClipperOffset::DoMiter(const Path64& path, size_t j, size_t k, double cos_a)
+void ClipperOffset::DoMiter(const Path64& path, size_t j, size_t k, double cos_a, int thr_id)
 {
+	PathD& norms = norm_threads[thr_id];
 	double q = group_delta_ / (cos_a + 1);
 #ifdef USINGZ
-	path_out.push_back(Point64(
+	path_out_threads[thr_id].push_back(Point64(
 		path[j].x + (norms[k].x + norms[j].x) * q,
 		path[j].y + (norms[k].y + norms[j].y) * q,
 		path[j].z));
 #else
-	path_out.push_back(Point64(
+	path_out_threads[thr_id].push_back(Point64(
 		path[j].x + (norms[k].x + norms[j].x) * q,
 		path[j].y + (norms[k].y + norms[j].y) * q));
 #endif
 }
 
-void ClipperOffset::DoRound(const Path64& path, size_t j, size_t k, double angle)
+void ClipperOffset::DoRound(const Path64& path, size_t j, size_t k, double angle, int thr_id)
 {
+	PathD& norms = norm_threads[thr_id];
 	if (deltaCallback64_) {
 		// when deltaCallback64_ is assigned, group_delta_ won't be constant, 
 		// so we'll need to do the following calculations for *every* vertex.
@@ -361,9 +369,9 @@ void ClipperOffset::DoRound(const Path64& path, size_t j, size_t k, double angle
 
 	if (j == k) offsetVec.Negate();
 #ifdef USINGZ
-	path_out.push_back(Point64(pt.x + offsetVec.x, pt.y + offsetVec.y, pt.z));
+	path_out_threads[thr_id].push_back(Point64(pt.x + offsetVec.x, pt.y + offsetVec.y, pt.z));
 #else
-	path_out.push_back(Point64(pt.x + offsetVec.x, pt.y + offsetVec.y));
+	path_out_threads[thr_id].push_back(Point64(pt.x + offsetVec.x, pt.y + offsetVec.y));
 #endif
 	int steps = static_cast<int>(std::ceil(steps_per_rad_ * std::abs(angle))); // #448, #456
 	for (int i = 1; i < steps; ++i) // ie 1 less than steps
@@ -371,16 +379,17 @@ void ClipperOffset::DoRound(const Path64& path, size_t j, size_t k, double angle
 		offsetVec = PointD(offsetVec.x * step_cos_ - step_sin_ * offsetVec.y,
 			offsetVec.x * step_sin_ + offsetVec.y * step_cos_);
 #ifdef USINGZ
-		path_out.push_back(Point64(pt.x + offsetVec.x, pt.y + offsetVec.y, pt.z));
+		path_out_threads[thr_id].push_back(Point64(pt.x + offsetVec.x, pt.y + offsetVec.y, pt.z));
 #else
-		path_out.push_back(Point64(pt.x + offsetVec.x, pt.y + offsetVec.y));
+		path_out_threads[thr_id].push_back(Point64(pt.x + offsetVec.x, pt.y + offsetVec.y));
 #endif
 	}
-	path_out.push_back(GetPerpendic(path[j], norms[j], group_delta_));
+	path_out_threads[thr_id].push_back(GetPerpendic(path[j], norms[j], group_delta_));
 }
 
-void ClipperOffset::OffsetPoint(const Group& group, const Path64& path, size_t j, size_t k)
+void ClipperOffset::OffsetPoint(const Group& group, const Path64& path, size_t j, size_t k, int thr_id)
 {
+	PathD& norms = norm_threads[thr_id];
 	// Let A = change in angle where edges join
 	// A == 0: ie no change in angle (flat join)
 	// A == PI: edges 'spike'
@@ -400,49 +409,50 @@ void ClipperOffset::OffsetPoint(const Group& group, const Path64& path, size_t j
 	}
 	if (std::fabs(group_delta_) <= floating_point_tolerance)
 	{
-		path_out.push_back(path[j]);
+		path_out_threads[thr_id].push_back(path[j]);
 		return;
 	}
 
 	if (cos_a > -0.99 && (sin_a * group_delta_ < 0)) // test for concavity first (#593)
 	{
 		// is concave
-		path_out.push_back(GetPerpendic(path[j], norms[k], group_delta_));
+		path_out_threads[thr_id].push_back(GetPerpendic(path[j], norms[k], group_delta_));
 		// this extra point is the only (simple) way to ensure that
 	  // path reversals are fully cleaned with the trailing clipper		
-		path_out.push_back(path[j]); // (#405)
-		path_out.push_back(GetPerpendic(path[j], norms[j], group_delta_));
+		path_out_threads[thr_id].push_back(path[j]); // (#405)
+		path_out_threads[thr_id].push_back(GetPerpendic(path[j], norms[j], group_delta_));
 	}
 	else if (cos_a > 0.999 && join_type_ != JoinType::Round) 
 	{
 		// almost straight - less than 2.5 degree (#424, #482, #526 & #724) 
-		DoMiter(path, j, k, cos_a);
+		DoMiter(path, j, k, cos_a, thr_id);
 	}
 	else if (join_type_ == JoinType::Miter)
 	{
 		// miter unless the angle is sufficiently acute to exceed ML
-		if (cos_a > temp_lim_ - 1) DoMiter(path, j, k, cos_a);
-		else DoSquare(path, j, k);
+		if (cos_a > temp_lim_ - 1) DoMiter(path, j, k, cos_a, thr_id);
+		else DoSquare(path, j, k, thr_id);
 	}
 	else if (join_type_ == JoinType::Round)
-		DoRound(path, j, k, std::atan2(sin_a, cos_a));
+		DoRound(path, j, k, std::atan2(sin_a, cos_a), thr_id);
 	else if ( join_type_ == JoinType::Bevel)
-		DoBevel(path, j, k);
+		DoBevel(path, j, k, thr_id);
 	else
-		DoSquare(path, j, k);
+		DoSquare(path, j, k, thr_id);
 }
 
-void ClipperOffset::OffsetPolygon(const Group& group, const Path64& path)
+void ClipperOffset::OffsetPolygon(const Group& group, const Path64& path, int thr_id)
 {
-	path_out.clear();
+	path_out_threads[thr_id].clear();
 	for (Path64::size_type j = 0, k = path.size() -1; j < path.size(); k = j, ++j)
-		OffsetPoint(group, path, j, k);
-	solution.push_back(path_out);
+		OffsetPoint(group, path, j, k, thr_id);
+	sol_threads[thr_id].push_back(path_out_threads[thr_id]);
 }
 
-void ClipperOffset::OffsetOpenJoined(const Group& group, const Path64& path)
+void ClipperOffset::OffsetOpenJoined(const Group& group, const Path64& path, int thr_id)
 {
-	OffsetPolygon(group, path);
+	PathD& norms = norm_threads[thr_id];
+	OffsetPolygon(group, path, thr_id);
 	Path64 reverse_path(path);
 	std::reverse(reverse_path.begin(), reverse_path.end());
 	
@@ -452,28 +462,29 @@ void ClipperOffset::OffsetOpenJoined(const Group& group, const Path64& path)
 	norms.erase(norms.begin());
 	NegatePath(norms);
 
-	OffsetPolygon(group, reverse_path);
+	OffsetPolygon(group, reverse_path, thr_id);
 }
 
-void ClipperOffset::OffsetOpenPath(const Group& group, const Path64& path)
+void ClipperOffset::OffsetOpenPath(const Group& group, const Path64& path, int thr_id)
 {
+	PathD& norms = norm_threads[thr_id];
 	// do the line start cap
 	if (deltaCallback64_) group_delta_ = deltaCallback64_(path, norms, 0, 0);
 	
 	if (std::fabs(group_delta_) <= floating_point_tolerance)
-		path_out.push_back(path[0]);
+		path_out_threads[thr_id].push_back(path[0]);
 	else
 	{
 		switch (end_type_)
 		{
 		case EndType::Butt:
-			DoBevel(path, 0, 0);
+			DoBevel(path, 0, 0, thr_id);
 			break;
 		case EndType::Round:
-			DoRound(path, 0, 0, PI);
+			DoRound(path, 0, 0, PI, thr_id);
 			break;
 		default:
-			DoSquare(path, 0, 0);
+			DoSquare(path, 0, 0, thr_id);
 			break;
 		}
 	}
@@ -481,7 +492,7 @@ void ClipperOffset::OffsetOpenPath(const Group& group, const Path64& path)
 	size_t highI = path.size() - 1;
 	// offset the left side going forward
 	for (Path64::size_type j = 1, k = 0; j < highI; k = j, ++j)
-		OffsetPoint(group, path, j, k);
+		OffsetPoint(group, path, j, k, thr_id);
 
 	// reverse normals 
 	for (size_t i = highI; i > 0; --i)
@@ -493,26 +504,26 @@ void ClipperOffset::OffsetOpenPath(const Group& group, const Path64& path)
 		group_delta_ = deltaCallback64_(path, norms, highI, highI);
 
 	if (std::fabs(group_delta_) <= floating_point_tolerance)
-		path_out.push_back(path[highI]);
+		path_out_threads[thr_id].push_back(path[highI]);
 	else
 	{
 		switch (end_type_)
 		{
 		case EndType::Butt:
-			DoBevel(path, highI, highI);
+			DoBevel(path, highI, highI, thr_id);
 			break;
 		case EndType::Round:
-			DoRound(path, highI, highI, PI);
+			DoRound(path, highI, highI, PI, thr_id);
 			break;
 		default:
-			DoSquare(path, highI, highI);
+			DoSquare(path, highI, highI, thr_id);
 			break;
 		}
 	}
 
 	for (size_t j = highI, k = 0; j > 0; k = j, --j)
-		OffsetPoint(group, path, j, k);
-	solution.push_back(path_out);
+		OffsetPoint(group, path, j, k, thr_id);
+	sol_threads[thr_id].push_back(path_out_threads[thr_id]);
 }
 
 void ClipperOffset::DoGroupOffset(const Group& group)
@@ -559,43 +570,48 @@ void ClipperOffset::DoGroupOffset(const Group& group)
 	// bounds_list, is_hole_list, and paths_in should all have the same size
 	// Original implementation uses iterators for the three sequences
 	// Change them to a loop counter to facilitate OpenMP or CUDA optimization...
+	std::printf("paths_in.size(): %lu\n", group.paths_in.size());
+	#pragma omp parallel for num_threads(MAX_OMP_THREADS)
 	for (size_t i = 0; i < group.paths_in.size(); ++i)
 	{
-		if (!group.bounds_list[i].IsValid()) continue;
-		Path64::size_type pathLen = group.paths_in[i].size();
-		path_out.clear();
+		size_t idx = i; // Capture
+		int thr_id = omp_get_thread_num();
+		//if (idx % 500 == 0) std::printf("Thread %d\n", thr_id);
+		if (!group.bounds_list[idx].IsValid()) continue;
+		Path64::size_type pathLen = group.paths_in[idx].size();
+		path_out_threads[thr_id].clear();
 
 		if (pathLen == 1) // single point
 		{
 			if (group_delta_ < 1) continue;
-			const Point64& pt = group.paths_in[i][0];
+			const Point64& pt = group.paths_in[idx][0];
 			//single vertex so build a circle or square ...
 			if (group.join_type == JoinType::Round)
 			{
 				double radius = abs_delta;
 				int steps = static_cast<int>(std::ceil(steps_per_rad_ * 2 * PI)); //#617
-				path_out = Ellipse(pt, radius, radius, steps);
+				path_out_threads[thr_id] = Ellipse(pt, radius, radius, steps);
 #ifdef USINGZ
-				for (auto& p : path_out) p.z = pt.z;
+				for (auto& p : path_out_threads[thr_id]) p.z = pt.z;
 #endif
 			}
 			else
 			{
 				int d = (int)std::ceil(abs_delta);
 				Rect64 r = Rect64(pt.x - d, pt.y - d, pt.x + d, pt.y + d);
-				path_out = r.AsPath();
+				path_out_threads[thr_id] = r.AsPath();
 #ifdef USINGZ
-				for (auto& p : path_out) p.z = pt.z;
+				for (auto& p : path_out_threads[thr_id]) p.z = pt.z;
 #endif
 			}
-			solution.push_back(path_out);
+			sol_threads[thr_id].push_back(path_out_threads[thr_id]);
 			continue;
 		} // end of offsetting a single point 
 
 		// when shrinking outer paths, make sure they can shrink this far (#593)
 		// also when shrinking holes, make sure they too can shrink this far (#715)
-		if ((group_delta_ > 0) == ToggleBoolIf(group.is_hole_list[i], group.is_reversed) &&
-			(std::min(group.bounds_list[i].Width(), group.bounds_list[i].Height()) <= -group_delta_ * 2) )
+		if ((group_delta_ > 0) == ToggleBoolIf(group.is_hole_list[idx], group.is_reversed) &&
+			(std::min(group.bounds_list[idx].Width(), group.bounds_list[idx].Height()) <= -group_delta_ * 2) )
 				  continue;
 
 		if ((pathLen == 2) && (group.end_type == EndType::Joined))
@@ -603,10 +619,17 @@ void ClipperOffset::DoGroupOffset(const Group& group)
 			  EndType::Round : 
 			  EndType::Square;
 
-		BuildNormals(group.paths_in[i]);
-		if (end_type_ == EndType::Polygon) OffsetPolygon(group, group.paths_in[i]);
-		else if (end_type_ == EndType::Joined) OffsetOpenJoined(group, group.paths_in[i]);
-		else OffsetOpenPath(group, group.paths_in[i]);
+		BuildNormals(group.paths_in[idx], thr_id);
+		if (end_type_ == EndType::Polygon) OffsetPolygon(group, group.paths_in[idx], thr_id);
+		else if (end_type_ == EndType::Joined) OffsetOpenJoined(group, group.paths_in[idx], thr_id);
+		else OffsetOpenPath(group, group.paths_in[idx], thr_id);
+	}
+
+	// Merge solutions from each thread
+	for (size_t i = 0; i < MAX_OMP_THREADS; ++i) {
+		solution.insert(solution.end(),
+						std::make_move_iterator(sol_threads[i].begin()),
+						std::make_move_iterator(sol_threads[i].end()));
 	}
 }
 
@@ -667,7 +690,11 @@ void ClipperOffset::Execute(double delta, Paths64& paths)
 {
 	paths.clear();
 
+	tsc_counter t0, t1;
+	RDTSC(t0);
 	ExecuteInternal(delta);
+	RDTSC(t1);
+	printf("ExecuteInternal %lf\n", COUNTER_DIFF(t1, t0, CYCLES));
 	if (!solution.size()) return;
 
 	bool paths_reversed = CheckReverseOrientation();
@@ -679,11 +706,17 @@ void ClipperOffset::Execute(double delta, Paths64& paths)
 #ifdef USINGZ
 	if (zCallback64_) { c.SetZCallback(zCallback64_); }
 #endif
+	RDTSC(t0);
 	c.AddSubject(solution);
+	RDTSC(t1);
+	printf("AddSubject %lf\n", COUNTER_DIFF(t1, t0, CYCLES));
+	RDTSC(t0);
 	if (paths_reversed)
 		c.Execute(ClipType::Union, FillRule::Negative, paths);
 	else
 		c.Execute(ClipType::Union, FillRule::Positive, paths);
+	RDTSC(t1);
+	printf("Execute Engine %lf\n", COUNTER_DIFF(t1, t0, CYCLES));
 }
 
 
@@ -691,7 +724,11 @@ void ClipperOffset::Execute(double delta, PolyTree64& polytree)
 {
 	polytree.Clear();
 
+	tsc_counter t0, t1;
+	RDTSC(t0);
 	ExecuteInternal(delta);
+	RDTSC(t1);
+	printf("%lf\n", COUNTER_DIFF(t1, t0, CYCLES));
 	if (!solution.size()) return;
 
 	bool paths_reversed = CheckReverseOrientation();

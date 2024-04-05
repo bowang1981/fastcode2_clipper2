@@ -13,6 +13,10 @@
 #include "clipper.core.h"
 #include "clipper.engine.h"
 
+#ifndef MAX_OMP_THREADS
+#define MAX_OMP_THREADS 4
+#endif
+
 namespace Clipper2Lib {
 
 enum class JoinType { Square, Bevel, Round, Miter };
@@ -50,10 +54,10 @@ private:
 	double steps_per_rad_ = 0.0;
 	double step_sin_ = 0.0;
 	double step_cos_ = 0.0;
-	PathD norms;
-	Path64 path_out;
+	PathD norm_threads[MAX_OMP_THREADS];
+	Path64 path_out_threads[MAX_OMP_THREADS];
 	Paths64 solution;
-	Paths64 sol_threads[32]; // Max 32 threads supported for OpenMP
+	Paths64 sol_threads[MAX_OMP_THREADS];
 	std::vector<Group> groups_;
 	JoinType join_type_ = JoinType::Bevel;
 	EndType end_type_ = EndType::Polygon;
@@ -70,15 +74,15 @@ private:
 
 	size_t CalcSolutionCapacity();
 	bool CheckReverseOrientation();
-	void DoBevel(const Path64& path, size_t j, size_t k);
-	void DoSquare(const Path64& path, size_t j, size_t k);
-	void DoMiter(const Path64& path, size_t j, size_t k, double cos_a);
-	void DoRound(const Path64& path, size_t j, size_t k, double angle);
-	void BuildNormals(const Path64& path);
-	void OffsetPolygon(const Group& group, const Path64& path);
-	void OffsetOpenJoined(const Group& group, const Path64& path);
-	void OffsetOpenPath(const Group& group, const Path64& path);
-	void OffsetPoint(const Group& group, const Path64& path, size_t j, size_t k);
+	void DoBevel(const Path64& path, size_t j, size_t k, int thr_id);
+	void DoSquare(const Path64& path, size_t j, size_t k, int thr_id);
+	void DoMiter(const Path64& path, size_t j, size_t k, double cos_a, int thr_id);
+	void DoRound(const Path64& path, size_t j, size_t k, double angle, int thr_id);
+	void BuildNormals(const Path64& path, int thr_id);
+	void OffsetPolygon(const Group& group, const Path64& path, int thr_id);
+	void OffsetOpenJoined(const Group& group, const Path64& path, int thr_id);
+	void OffsetOpenPath(const Group& group, const Path64& path, int thr_id);
+	void OffsetPoint(const Group& group, const Path64& path, size_t j, size_t k, int thr_id);
 	void DoGroupOffset(const Group &group);
 	void ExecuteInternal(double delta);
 public:
@@ -95,7 +99,12 @@ public:
 	int ErrorCode() { return error_code_; };
 	void AddPath(const Path64& path, JoinType jt_, EndType et_);
 	void AddPaths(const Paths64& paths, JoinType jt_, EndType et_);
-	void Clear() { groups_.clear(); norms.clear(); };
+	void Clear() {
+		groups_.clear();
+		for (size_t i = 0; i < MAX_OMP_THREADS; ++i) {
+			norm_threads[i].clear();
+		}
+	};
 	
 	void Execute(double delta, Paths64& paths);
 	void Execute(double delta, PolyTree64& polytree);
