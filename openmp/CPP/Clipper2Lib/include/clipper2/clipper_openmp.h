@@ -91,23 +91,36 @@ namespace Clipper2Lib {
         return a;
     }
 
+    // In this version, we use the original Clipper2 Area() function
+    inline double Area_OpenMP_With_Clipper2_Area(const Paths64& paths)
+    {
+        double totalSum = 0.0;
+        #pragma omp parallel for reduction(+:totalSum) 
+        for (const auto &p: paths) {
+            const auto localSum = Area(p);
+            totalSum+=localSum;
+        }
+        return totalSum;
+    }
+
+
+    // In this version, we implement our own area calculation function
     inline double Area_OpenMP(const Paths64& paths)
     {
         double totalSum = 0.0;
-
-        #pragma omp parallel for reduction(+:totalSum)
-        for (auto p = paths.cbegin(); p != paths.cend(); ++p){
-            if(p->size()<3){
+        #pragma omp parallel for reduction(+:totalSum) 
+        for (const auto &p: paths) {
+            double localSum = 0.0;
+            const auto pathSize = p.size();
+            if(pathSize<3){
                 continue;
             }
-            double localSum = 0.0;
-            auto it2 = p->cend()-1;
-            for(auto it1 = p->cbegin();it1 != p->cend(); ++it1){
-                localSum+= (it1->x + it2->x) * (it1->y - it2->y);
-                it2 = it1;
+            const auto lastIdx = pathSize - 1;
+            for (size_t i = 0; i < pathSize; ++i) {
+                const auto& it1 = p[i];
+                const auto& it2 = p[i == 0 ? lastIdx : i - 1];
+                localSum += (it1.x + it2.x) * (it1.y - it2.y);
             }
-            
-            #pragma omp atomic
             totalSum += localSum;
         }
         return totalSum/2;
