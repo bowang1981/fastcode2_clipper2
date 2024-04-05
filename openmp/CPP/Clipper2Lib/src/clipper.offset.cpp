@@ -626,11 +626,15 @@ void ClipperOffset::DoGroupOffset(const Group& group)
 	}
 
 	// Merge solutions from each thread
+	tsc_counter t0, t1;
+	RDTSC(t0);
 	for (size_t i = 0; i < MAX_OMP_THREADS; ++i) {
 		solution.insert(solution.end(),
 						std::make_move_iterator(sol_threads[i].begin()),
 						std::make_move_iterator(sol_threads[i].end()));
 	}
+	RDTSC(t1);
+	printf("Merge %lf\n", COUNTER_DIFF(t1, t0, CYCLES));
 }
 
 
