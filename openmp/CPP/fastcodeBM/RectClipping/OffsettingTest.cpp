@@ -38,7 +38,7 @@ namespace OffsettingTest {
             jiffies += COUNTER_DIFF(t1, t0, CYCLES);
             solution = SimplifyPaths(solution, 2.5);
         }
-        std::cout << "Offsetting rectangles of size " << cnt << " : average "
+        std::cout << "Offsetting rectangles of size " << cnt << ": average "
                   << static_cast<double>(jiffies) / runs << " cycles" << std::endl;
     }
 

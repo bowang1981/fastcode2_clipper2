@@ -53,6 +53,7 @@ private:
 	PathD norms;
 	Path64 path_out;
 	Paths64 solution;
+	Paths64 sol_threads[32]; // Max 32 threads supported for OpenMP
 	std::vector<Group> groups_;
 	JoinType join_type_ = JoinType::Bevel;
 	EndType end_type_ = EndType::Polygon;
@@ -78,7 +79,7 @@ private:
 	void OffsetOpenJoined(const Group& group, const Path64& path);
 	void OffsetOpenPath(const Group& group, const Path64& path);
 	void OffsetPoint(const Group& group, const Path64& path, size_t j, size_t k);
-	void DoGroupOffset(Group &group);
+	void DoGroupOffset(const Group &group);
 	void ExecuteInternal(double delta);
 public:
 	explicit ClipperOffset(double miter_limit = 2.0,

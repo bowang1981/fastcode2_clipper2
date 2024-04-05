@@ -48,7 +48,7 @@ void GetMultiBounds(const Paths64& paths, std::vector<Rect64>& recList)
 	}
 }
 
-bool ValidateBounds(std::vector<Rect64>& recList, double delta)
+bool ValidateBounds(const std::vector<Rect64>& recList, double delta)
 {
 	int64_t int_delta = static_cast<int64_t>(delta);
 	int64_t big = MAX_COORD - int_delta;
@@ -515,7 +515,7 @@ void ClipperOffset::OffsetOpenPath(const Group& group, const Path64& path)
 	solution.push_back(path_out);
 }
 
-void ClipperOffset::DoGroupOffset(Group& group)
+void ClipperOffset::DoGroupOffset(const Group& group)
 {
 	if (group.end_type == EndType::Polygon)
 	{
