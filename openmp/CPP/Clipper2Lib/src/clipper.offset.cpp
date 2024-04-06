@@ -714,13 +714,10 @@ void ClipperOffset::Execute(double delta, Paths64& paths)
 	c.AddSubject(solution);
 	RDTSC(t1);
 	printf("AddSubject %lf\n", COUNTER_DIFF(t1, t0, CYCLES));
-	RDTSC(t0);
 	if (paths_reversed)
 		c.Execute(ClipType::Union, FillRule::Negative, paths);
 	else
 		c.Execute(ClipType::Union, FillRule::Positive, paths);
-	RDTSC(t1);
-	printf("Execute Engine %lf\n", COUNTER_DIFF(t1, t0, CYCLES));
 }
 
 

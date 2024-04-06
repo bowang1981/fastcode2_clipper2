@@ -7,6 +7,7 @@
 * License   :  http://www.boost.org/LICENSE_1_0.txt                            *
 *******************************************************************************/
 
+#include <cstdio>
 #include <cstdlib>
 #include <cmath>
 #include <stdexcept>
@@ -16,6 +17,7 @@
 
 #include "clipper2/clipper.engine.h"
 #include "clipper2/clipper.h"
+#include "rdtsc.h"
 
 // https://github.com/AngusJohnson/Clipper2/discussions/334
 // #discussioncomment-4248602
@@ -2081,23 +2083,33 @@ namespace Clipper2Lib {
     int64_t y;
     if (ct == ClipType::None || !PopScanline(y)) return true;
 
+    tsc_counter t0, t1;
+    long long ael_jif = 0, horz_jif = 0, cvtjoins_jif = 0, inters_jif = 0;
+    long long topbeam_jif = 0, horz2_jif = 0, procjoins_jif = 0;
     while (succeeded_)
     {
-      InsertLocalMinimaIntoAEL(y);
+      RDTSC(t0); InsertLocalMinimaIntoAEL(y); RDTSC(t1); ael_jif += COUNTER_DIFF(t1, t0, CYCLES);
       Active* e;
-      while (PopHorz(e)) DoHorizontal(*e);
+      RDTSC(t0); while (PopHorz(e)) DoHorizontal(*e); RDTSC(t1); horz_jif += COUNTER_DIFF(t1, t0, CYCLES);
       if (horz_seg_list_.size() > 0)
       {
-        ConvertHorzSegsToJoins();
+        RDTSC(t0); ConvertHorzSegsToJoins(); RDTSC(t1); cvtjoins_jif += COUNTER_DIFF(t1, t0, CYCLES);
         horz_seg_list_.clear();
       }
       bot_y_ = y;  // bot_y_ == bottom of scanbeam
       if (!PopScanline(y)) break;  // y new top of scanbeam
-      DoIntersections(y);
-      DoTopOfScanbeam(y);
-      while (PopHorz(e)) DoHorizontal(*e);
+      RDTSC(t0); DoIntersections(y); RDTSC(t1); inters_jif += COUNTER_DIFF(t1, t0, CYCLES);
+      RDTSC(t0); DoTopOfScanbeam(y); RDTSC(t1); topbeam_jif += COUNTER_DIFF(t1, t0, CYCLES);
+      RDTSC(t0); while (PopHorz(e)) DoHorizontal(*e); RDTSC(t1); horz2_jif += COUNTER_DIFF(t1, t0, CYCLES);
     }
-    if (succeeded_) ProcessHorzJoins();
+    RDTSC(t0); if (succeeded_) ProcessHorzJoins(); RDTSC(t1); procjoins_jif += COUNTER_DIFF(t1, t0, CYCLES);
+    printf("InsertLocalMinimaIntoAEL: %lld\n", ael_jif);
+    printf("DoHorizontal: %lld\n", horz_jif);
+    printf("ConvertHorzSegsToJoins: %lld\n", cvtjoins_jif);
+    printf("DoIntersections: %lld\n", inters_jif);
+    printf("DoTopOfScanbeam: %lld\n", topbeam_jif);
+    printf("DoHorizontal (2): %lld\n", horz2_jif);
+    printf("ProcessHorzJoins: %lld\n", procjoins_jif);
     return succeeded_;
   }
 
