@@ -1,10 +1,13 @@
 cmake_minimum_required(VERSION 3.15)
 project(Clipper2 VERSION 1.3.0 LANGUAGES C CXX)
+enable_language(CUDA)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 if(NOT DEFINED CMAKE_CXX_STANDARD OR CMAKE_CXX_STANDARD LESS 17)
     set(CMAKE_CXX_STANDARD 17)
 endif()
+set(CMAKE_CUDA_STANDARD 17)
+# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --compiler-options -Werror")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -42,6 +45,7 @@ set(CLIPPER2_SRC
   Clipper2Lib/src/clipper.engine.cpp
   Clipper2Lib/src/clipper.offset.cpp
   Clipper2Lib/src/clipper.rectclip.cpp
+  Clipper2Lib/src/clipper.cu
 )
 
 set(CLIPPER2_LIBS "") # one or both of Clipper2/Clipper2Z
@@ -63,7 +67,8 @@ if (NOT (CLIPPER2_USINGZ STREQUAL "ONLY"))
   if (MSVC)
     target_compile_options(Clipper2 PRIVATE /W4 /WX)
   else()
-    target_compile_options(Clipper2 PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    target_compile_options(Clipper2 PRIVATE -Wall -Wextra -Wpedantic)
+    # -Werror)
     target_link_libraries(Clipper2 PUBLIC -lm)
   endif()
 endif()

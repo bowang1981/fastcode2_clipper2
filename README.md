@@ -2,6 +2,9 @@ How to build this on ECE machines.
 Steps to build baseline(or cuda or openmp, just replace baseline with cuda or openmp in the following steps)
 1. Switch to the new compiler with the following command: 
     scl enable devtoolset-12 bash
+   Important, cuda11...4 cannot work with gcc12, so we have to use devtoolset-10
+so, use the following command for cuda folder:
+ scl enable devtoolset-10 bash
 2. Go to the baseline/CPP folder, create build_root under that folder:
    cd baseline/CPP;
    mkdir build_root
