@@ -8,8 +8,8 @@
 
 namespace OffsettingTest {
 
-    void doOffsetTest();
-    void doOffsetTest1();
+    void doOffsetTestBasic();
+    void doOffsetTest(int cnt, int runs = 1);
 
 };
 
