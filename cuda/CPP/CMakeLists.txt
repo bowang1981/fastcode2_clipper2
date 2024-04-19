@@ -46,6 +46,8 @@ set(CLIPPER2_SRC
   Clipper2Lib/src/clipper.offset.cpp
   Clipper2Lib/src/clipper.rectclip.cpp
   Clipper2Lib/src/clipper.cu
+  Clipper2Lib/src/clipper.area.cu
+  Clipper2Lib/src/clipper.rectclip.cu
 )
 
 set(CLIPPER2_LIBS "") # one or both of Clipper2/Clipper2Z
