@@ -6,8 +6,9 @@
 #define FASTCODE2_CLIPPER2_UNIONTEST_H
 
 
-class UnionTest {
-
+namespace UnionTest {
+    void DoSquares();
+    void DoPolygons();
 };
 
 
