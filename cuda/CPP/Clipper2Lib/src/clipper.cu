@@ -1,5 +1,6 @@
 #include "clipper2/clipper.cuh"
 #include "clipper2/clipper.core.cuh"
+#include "clipper2/clipper.rectclip.cuh"
 #include <iostream>
 #include <vector>
 
@@ -19,7 +20,55 @@ void wrap_test_print() {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// TODO: to be checked ==========
+cuOutPt2::cuOutPt2(){
+}
+cuOutPt2 cuOutPt2::init(const OutPt2 &outpt2){
+    if (outpt2.edge == nullptr){
+        return cuOutPt2();
+    }
 
+    pt.x = outpt2.pt.x;
+    pt.y = outpt2.pt.y;
+    owner_idx = outpt2.owner_idx;
+    edge = new cuOutPt2List();
+    edge->init(outpt2.edge);
+    next =  init(outpt2.next);
+    prev =  init(outpt2.prev);
+    return *this;
+}
+
+
+cuOutPt2List::cuOutPt2List(){
+}
+void cuOutPt2List::init(const OutPt2List &outpt2list){
+    size = outpt2list.size();
+    cudaError_t err = cudaMallocManaged(&list,size*sizeof(cuOutPt2));
+    if (err != cudaSuccess)
+    {
+        std::cout << "Memory allocation failed"<<std::endl;
+    }
+    for(size_t i = 0;i<size;++i){
+        list[i] = list[i].init(outpt2list[i]);
+    }
+}
+
+void cuOutPt2List::init(int sz){
+    size = sz;
+    cudaError_t err = cudaMallocManaged(&list,size*sizeof(cuOutPt2));
+    if (err != cudaSuccess)
+    {
+        std::cout << "Memory allocation failed"<<std::endl;
+    }
+}
+
+cuOutPt2List::~cuOutPt2List(){
+    cudaFree(list);
+}
+// ================
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 cuPath64::cuPath64()
 {
