@@ -6,13 +6,17 @@
 #include "OffsettingTest.h"
 #include "clipper2/clipper.cuh"
 #include "AreaCalcTest.h"
+#include "UnionTest.h"
+#include <unistd.h>
 
 int main(int argc, char* argv[])
 {
     srand((unsigned)time(0));
     AreaCalcTest::DoTestAreaCalc();
     Clipper2Lib::wrap_test_print();
-    // RectClippingTest::DoRectanglesTest(500);
+
+    UnionTest::DoSquares();
+    RectClippingTest::DoRectanglesTest(50);
     // RectClippingTest::DoPolygonTest(500);
     // OffsettingTest::doOffsetTest1();
     // OffsettingTest::doOffsetTest();

@@ -6,6 +6,7 @@
 #include <fstream>
 #include <string>
 #include "clipper2/clipper.h"
+#include "clipper2/clipper.rectclip.cuh"
 #include "TestGenerator.h"
 #include "RectClipping.h"
 #include "../../Utils/clipper.svg.h"
@@ -33,7 +34,8 @@ namespace RectClippingTest {
             clp.push_back(rect.AsPath());
             sub = TestGenerator::CreateRectangles(cnt);
 
-            sol = RectClip(rect, sub);
+            rectclip_execute(sub, rect, sol );
+            //sol = RectClip(rect, sub);
 
             FillRule fr = FillRule::EvenOdd;
             SvgWriter svg;
