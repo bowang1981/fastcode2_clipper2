@@ -23,6 +23,145 @@ __host__ __device__ bool contains(const cuRect64& cur, const cuRect64& rect )
 	return false;
 }
 
+
+__host__ __device__ bool GetLocation(const cuRect64& rec, const cuPoint64& pt, Location& loc)
+  {
+    if (pt.x == rec.left && pt.y >= rec.top && pt.y <= rec.bottom)
+    {
+      loc = Location::Left;
+      return false;
+    }
+    else if (pt.x == rec.right && pt.y >= rec.top && pt.y <= rec.bottom)
+    {
+      loc = Location::Right;
+      return false;
+    }
+    else if (pt.y == rec.top && pt.x >= rec.left && pt.x <= rec.right)
+    {
+      loc = Location::Top;
+      return false;
+    }
+    else if (pt.y == rec.bottom && pt.x >= rec.left && pt.x <= rec.right)
+    {
+      loc = Location::Bottom;
+      return false;
+    }
+    else if (pt.x < rec.left) loc = Location::Left;
+    else if (pt.x > rec.right) loc = Location::Right;
+    else if (pt.y < rec.top) loc = Location::Top;
+    else if (pt.y > rec.bottom) loc = Location::Bottom;
+    else loc = Location::Inside;
+    return true;
+  }
+
+__host__ __device__ Location GetAdjacentLocation(Location loc, bool isClockwise)
+  {
+    int delta = (isClockwise) ? 1 : 3;
+    return static_cast<Location>((static_cast<int>(loc) + delta) % 4);
+  }
+
+
+__host__ __device__ bool HeadingClockwise(Location prev, Location curr)
+  {
+    return (static_cast<int>(prev) + 1) % 4 == static_cast<int>(curr);
+  }
+
+__host__ __device__ bool AreOpposites(Location prev, Location curr)
+  {
+    return abs(static_cast<int>(prev) - static_cast<int>(curr)) == 2;
+  }
+
+__host__ __device__ bool IsClockwise(Location prev, Location curr,
+    const cuPoint64& prev_pt, const cuPoint64& curr_pt, const cuPoint64& rect_mp)
+  {
+    if (AreOpposites(prev, curr))
+      return CrossProduct(prev_pt, rect_mp, curr_pt) < 0;
+    else
+      return HeadingClockwise(prev, curr);
+  }
+
+__host__ __device__ double CrossProduct(const cuPoint64& pt1, const cuPoint64& pt2, const cuPoint64& pt3)
+  {
+	return (static_cast<double>(pt2.x - pt1.x) * static_cast<double>(pt3.y -
+      pt2.y) - static_cast<double>(pt2.y - pt1.y) * static_cast<double>(pt3.x - pt2.x));
+  }
+
+__host__ __device__ cuOutPt2* UnlinkOp(cuOutPt2* op)
+  {
+	if (op->next == op) return nullptr;
+    op->prev->next = op->next;
+    op->next->prev = op->prev;
+    return op->next;
+  }
+
+__host__ __device__ cuOutPt2* UnlinkOpBack(cuOutPt2* op)
+  {
+    if (op->next == op) return nullptr;
+    op->prev->next = op->next;
+    op->next->prev = op->prev;
+    return op->prev;
+  }
+
+__host__ __device__ uint32_t GetEdgesForPt(const cuPoint64& pt, const cuRect64& rec)
+  {
+    uint32_t result = 0;
+    if (pt.x == rec.left) result = 1;
+    else if (pt.x == rec.right) result = 4;
+    if (pt.y == rec.top) result += 2;
+    else if (pt.y == rec.bottom) result += 8;
+    return result;
+  }
+
+__host__ __device__ bool IsHeadingClockwise(const cuPoint64& pt1, const cuPoint64& pt2, int edgeIdx)
+  {
+    switch (edgeIdx)
+    {
+    case 0: return pt2.y < pt1.y;
+    case 1: return pt2.x > pt1.x;
+    case 2: return pt2.y > pt1.y;
+    default: return pt2.x < pt1.x;
+    }
+  }
+
+__host__ __device__ bool HasHorzOverlap(const cuPoint64& left1, const cuPoint64& right1,
+    const cuPoint64& left2, const cuPoint64& right2)
+  {
+    return (left1.x < right2.x) && (right1.x > left2.x);
+  }
+
+__host__ __device__ bool HasVertOverlap(const cuPoint64& top1, const cuPoint64& bottom1,
+    const cuPoint64& top2, const cuPoint64& bottom2)
+  {
+    return (top1.y < bottom2.y) && (bottom1.y > top2.y);
+  }
+
+
+__host__ __device__ void UncoupleEdge(cuOutPt2* op)
+  {
+    if (!op->edge) return;
+    for (size_t i = 0; i < op->edge->size(); ++i)
+    {
+      OutPt2* op2 = (*op->edge)[i];
+      if (op2 == op)
+      {
+        (*op->edge)[i] = nullptr;
+        break;
+      }
+    }
+    op->edge = nullptr;
+  }
+
+__host__ __device__ void SetNewOwner(cuOutPt2* op, size_t new_idx)
+  {
+    op->owner_idx = new_idx;
+    OutPt2* op2 = op->next;
+    while (op2 != op)
+    {
+      op2->owner_idx = new_idx;
+      op2 = op2->next;
+    }
+  }
+
 __host__ __device__ cuRect64 getBoundary(const cuPath64& path)
 {
 	cuRect64 res;
