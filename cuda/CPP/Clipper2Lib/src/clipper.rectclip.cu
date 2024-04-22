@@ -203,6 +203,18 @@ __global__ void filter(cuPaths64* input, cuRect64* rect, int* output)
 
 }
 
+// TODO: change type of parameters
+__global__ void executeClip(const cuPaths64& input, cuRect64* rect ,cuPaths64& output)
+{
+  int thread_no = gridDim.x * blockDim.x;
+	int id = blockIdx.x * blockDim.x + threadIdx.x;
+	int ctn = input->size / thread_no + 1;
+  cuRect64 r1 = getBoundary(input->cupaths[i]);
+  // TODO...
+}
+
+
+
 void rectclip_execute(const Paths64& input, const Rect64& rect, Paths64& output) {
 	cuPaths64* paths;
 	cudaMallocManaged(&paths, sizeof(cuPaths64));
@@ -218,18 +230,23 @@ void rectclip_execute(const Paths64& input, const Rect64& rect, Paths64& output)
 	r1->left = rect.left;
 	r1->right = rect.right;
 
-	filter<<<1, 32>>>(paths, r1, filterarr);
+	filter<<<10, 128>>>(paths, r1, filterarr);
 	cudaDeviceSynchronize();
-	Paths64 insides;
+	Paths64 overlaps;
 
 	for (int i = 0; i < input.size(); ++i) {
-		if (filterarr[i] == 2) {
+		if (filterarr[i] == 1) { // inside, just add into output
 			output.push_back(input[i]);
-		} else if (filterarr[i] == 1) {
-			insides.push_back(input[i]);
+		} else if (filterarr[i] == 2) { // overlap, need to continue process
+			overlaps.push_back(input[i]);
 		}
 	}
-	///TBD: Now we need to do the clip on the output, and append the insides after that.
+	///TBD: continue process overlaps, and add into output
+  cudaMallocManaged(&inputClip, sizeof(cuPaths64));
+  inputClip->init(overlaps);
+  cudaMallocManaged(&outputClip, sizeof(cuPaths64));
+  outputClip->init(size(overlaps));
+  executeClip<<<10, 128>>>(inputClip, r1 ,outputClip ...);
 
 
 	cudaFree(r1);
