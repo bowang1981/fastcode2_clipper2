@@ -22,6 +22,7 @@ struct cuPath64 {
 	__host__ void init(const Path64& path);
 	__host__ void init(int sz);
 	__host__ ~cuPath64();
+	__host__ Path64 toPath64() const;
 //	__device__ __host__ cuRect64 getBoundary();
 	cuPoint64* points;
 	int size;
@@ -31,6 +32,8 @@ struct cuPaths64 {
 	__host__ cuPaths64();
 	__host__ void init(const Paths64& paths);
 	__host__ void init(int sz);
+	__host__ void initShapeOnly(const Paths64& paths, int factor);
+	__host__ Paths64 toPaths64() const;
 	__host__ ~cuPaths64();
 	cuPath64* cupaths;
 	int size;

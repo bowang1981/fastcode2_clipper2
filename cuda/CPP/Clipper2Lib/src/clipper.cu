@@ -20,52 +20,6 @@ void wrap_test_print() {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TODO: to be checked ==========
-cuOutPt2::cuOutPt2(){
-}
-cuOutPt2 cuOutPt2::init(const OutPt2 &outpt2){
-    if (outpt2.edge == nullptr){
-        return cuOutPt2();
-    }
-
-    pt.x = outpt2.pt.x;
-    pt.y = outpt2.pt.y;
-    owner_idx = outpt2.owner_idx;
-    edge = new cuOutPt2List();
-    edge->init(outpt2.edge);
-    next =  init(outpt2.next);
-    prev =  init(outpt2.prev);
-    return *this;
-}
-
-
-cuOutPt2List::cuOutPt2List(){
-}
-void cuOutPt2List::init(const OutPt2List &outpt2list){
-    size = outpt2list.size();
-    cudaError_t err = cudaMallocManaged(&list,size*sizeof(cuOutPt2));
-    if (err != cudaSuccess)
-    {
-        std::cout << "Memory allocation failed"<<std::endl;
-    }
-    for(size_t i = 0;i<size;++i){
-        list[i] = list[i].init(outpt2list[i]);
-    }
-}
-
-void cuOutPt2List::init(int sz){
-    size = sz;
-    cudaError_t err = cudaMallocManaged(&list,size*sizeof(cuOutPt2));
-    if (err != cudaSuccess)
-    {
-        std::cout << "Memory allocation failed"<<std::endl;
-    }
-}
-
-cuOutPt2List::~cuOutPt2List(){
-    cudaFree(list);
-}
-// ================
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -89,6 +43,19 @@ void cuPath64::init(const Path64& path)
     }
 }
 
+Path64 cuPath64::toPath64() const
+{
+	Path64 p;
+	p.reserve(size);
+	for (auto i = 0; i < size; ++i) {
+		Point64 p1;
+		p1.x = points[i].x;
+		p1.y = points[i].y;
+		p.push_back(p1);
+	}
+	return p;
+}
+
 void cuPath64::init(int sz)
 {
 	size = sz;
@@ -110,6 +77,7 @@ cuPath64::~cuPath64()
 
 cuPaths64::cuPaths64() {
 }
+
 void cuPaths64::init(const Paths64& paths)
 {
 	size = paths.size();
@@ -125,6 +93,33 @@ void cuPaths64::init(const Paths64& paths)
 
 }
 
+Paths64 cuPaths64::toPaths64() const
+{
+	Paths64 res;
+	res.reserve(size);
+	for (int i = 0; i < size; ++i) {
+		Path64 p = cupaths[i].toPath64();
+		res.push_back(p);
+	}
+
+	return res;
+}
+
+void cuPaths64::initShapeOnly(const Paths64& paths, int factor)
+{
+	size = paths.size();
+    cudaError_t err = cudaMallocManaged(&cupaths, size*sizeof(cuPath64));
+    if (err != cudaSuccess)
+    {
+        std::cout << "Memory allocation failed"<<std::endl;
+    }
+
+    for(size_t i = 0;i<size;++i){
+    	cupaths[i].init(factor * paths[i].size());
+    }
+
+}
+
 void cuPaths64::init(int sz)
 {
 	size = sz;
@@ -134,6 +129,7 @@ void cuPaths64::init(int sz)
         std::cout << "Memory allocation failed"<<std::endl;
     }
 }
+
 
 cuPaths64::~cuPaths64(){
 	cudaFree(cupaths);

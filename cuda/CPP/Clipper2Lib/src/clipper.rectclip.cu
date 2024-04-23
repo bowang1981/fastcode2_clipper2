@@ -1,6 +1,7 @@
 
 #include "clipper2/clipper.cuh"
 #include "clipper2/clipper.core.cuh"
+#include "clipper2/clipper.rectclip.cuh"
 #include <iostream>
 #include <vector>
 __global__ void test_print() {
@@ -8,6 +9,79 @@ __global__ void test_print() {
 }
 
 namespace Clipper2Lib {
+
+/*
+    // TODO: to be checked ======
+    class cuOutPt2;
+    struct cuOutPt2List{
+        __host__ cuOutPt2List();
+        __host__ void init(const OutPt2List &outpt2list);
+        __host__ void init(int sz);
+        __host__ ~cuOutPt2List();
+        cuOutPt2* list;
+        int size;
+    };
+
+    class cuOutPt2 {
+        public:
+            __host__ cuOutPt2();
+            __host__ cuOutPt2 init(const OutPt2 &outpt2);
+            cuPoint64 pt;
+            size_t owner_idx;
+            cuOutPt2List* edge;
+            cuOutPt2* next;
+            cuOutPt2* prev;
+        };
+        */
+
+/*
+// TODO: to be checked ==========
+cuOutPt2::cuOutPt2(){
+}
+
+cuOutPt2 cuOutPt2::init(const OutPt2 &outpt2){
+    if (outpt2.edge == nullptr){
+        return cuOutPt2();
+    }
+
+    pt.x = outpt2.pt.x;
+    pt.y = outpt2.pt.y;
+    owner_idx = outpt2.owner_idx;
+    edge = new cuOutPt2List();
+    edge->init(outpt2.edge);
+    next =  init(outpt2.next);
+    prev =  init(outpt2.prev);
+    return *this;
+}
+
+
+cuOutPt2List::cuOutPt2List(){
+}
+void cuOutPt2List::init(const OutPt2List &outpt2list){
+    size = outpt2list.size();
+    cudaError_t err = cudaMallocManaged(&list,size*sizeof(cuOutPt2));
+    if (err != cudaSuccess)
+    {
+        std::cout << "Memory allocation failed"<<std::endl;
+    }
+    for(size_t i = 0;i<size;++i){
+        list[i] = list[i].init(outpt2list[i]);
+    }
+}
+
+void cuOutPt2List::init(int sz){
+    size = sz;
+    cudaError_t err = cudaMallocManaged(&list,size*sizeof(cuOutPt2));
+    if (err != cudaSuccess)
+    {
+        std::cout << "Memory allocation failed"<<std::endl;
+    }
+}
+
+cuOutPt2List::~cuOutPt2List(){
+    cudaFree(list);
+}*/
+// ================
 
 /**********************************************************************************************************************
 ////////// RectClipping related functions //////////////////////////////
@@ -71,6 +145,12 @@ __host__ __device__ bool AreOpposites(Location prev, Location curr)
     return abs(static_cast<int>(prev) - static_cast<int>(curr)) == 2;
   }
 
+__host__ __device__ double CrossProduct(const cuPoint64& pt1, const cuPoint64& pt2, const cuPoint64& pt3)
+  {
+	return (static_cast<double>(pt2.x - pt1.x) * static_cast<double>(pt3.y -
+      pt2.y) - static_cast<double>(pt2.y - pt1.y) * static_cast<double>(pt3.x - pt2.x));
+  }
+
 __host__ __device__ bool IsClockwise(Location prev, Location curr,
     const cuPoint64& prev_pt, const cuPoint64& curr_pt, const cuPoint64& rect_mp)
   {
@@ -80,12 +160,8 @@ __host__ __device__ bool IsClockwise(Location prev, Location curr,
       return HeadingClockwise(prev, curr);
   }
 
-__host__ __device__ double CrossProduct(const cuPoint64& pt1, const cuPoint64& pt2, const cuPoint64& pt3)
-  {
-	return (static_cast<double>(pt2.x - pt1.x) * static_cast<double>(pt3.y -
-      pt2.y) - static_cast<double>(pt2.y - pt1.y) * static_cast<double>(pt3.x - pt2.x));
-  }
 
+/*
 __host__ __device__ cuOutPt2* UnlinkOp(cuOutPt2* op)
   {
 	if (op->next == op) return nullptr;
@@ -101,7 +177,7 @@ __host__ __device__ cuOutPt2* UnlinkOpBack(cuOutPt2* op)
     op->next->prev = op->prev;
     return op->prev;
   }
-
+*/
 __host__ __device__ uint32_t GetEdgesForPt(const cuPoint64& pt, const cuRect64& rec)
   {
     uint32_t result = 0;
@@ -134,7 +210,7 @@ __host__ __device__ bool HasVertOverlap(const cuPoint64& top1, const cuPoint64& 
   {
     return (top1.y < bottom2.y) && (bottom1.y > top2.y);
   }
-
+/*
 
 __host__ __device__ void UncoupleEdge(cuOutPt2* op)
   {
@@ -161,6 +237,7 @@ __host__ __device__ void SetNewOwner(cuOutPt2* op, size_t new_idx)
       op2 = op2->next;
     }
   }
+  */
 
 __host__ __device__ cuRect64 getBoundary(const cuPath64& path)
 {
@@ -203,13 +280,30 @@ __global__ void filter(cuPaths64* input, cuRect64* rect, int* output)
 
 }
 
+__global__ void testonly_updateverticecount(cuPaths64* input, cuPaths64* output) {
+	int thread_no = gridDim.x * blockDim.x;
+	int id = blockIdx.x * blockDim.x + threadIdx.x;
+	int ctn = input->size / thread_no + 1;
+	for (int i = ctn * id; i < (ctn * (id+1)) && i < input->size; ++i) {
+
+		for (int j = 0; j < input->cupaths[i].size; ++j) {
+			int next = (i+1) % input->cupaths[i].size;
+			output->cupaths[i].points[2*j].x = input->cupaths[i].points[j].x;
+			output->cupaths[i].points[2*j].y = input->cupaths[i].points[j].y;
+			output->cupaths[i].points[2*j+1].x = (input->cupaths[i].points[j].x + input->cupaths[i].points[next].x)/2 + 2;;
+			output->cupaths[i].points[2*j+1].y = (input->cupaths[i].points[j].y + input->cupaths[i].points[next].y) / 2 + 2;
+		}
+
+	}
+}
+
 // TODO: change type of parameters
 __global__ void executeClip(const cuPaths64& input, cuRect64* rect ,cuPaths64& output)
-{
+{/*
   int thread_no = gridDim.x * blockDim.x;
 	int id = blockIdx.x * blockDim.x + threadIdx.x;
 	int ctn = input->size / thread_no + 1;
-  cuRect64 r1 = getBoundary(input->cupaths[i]);
+  cuRect64 r1 = getBoundary(input->cupaths[i]);*/
   // TODO...
 }
 
@@ -241,14 +335,31 @@ void rectclip_execute(const Paths64& input, const Rect64& rect, Paths64& output)
 			overlaps.push_back(input[i]);
 		}
 	}
+
+	cuPaths64* ins;
+	cudaMallocManaged(&ins, sizeof(cuPaths64));
+	ins->init(overlaps);
+
+	cuPaths64* outs;
+	cudaMallocManaged(&outs, sizeof(cuPaths64));
+	outs->initShapeOnly(overlaps, 2);
+
+	testonly_updateverticecount<<<1, 1>>>(ins, outs);
+	cudaDeviceSynchronize();
+	output = outs->toPaths64();
+
+	cudaFree(ins);
+	cudaFree(outs);
+	/*
+
 	///TBD: continue process overlaps, and add into output
   cudaMallocManaged(&inputClip, sizeof(cuPaths64));
   inputClip->init(overlaps);
   cudaMallocManaged(&outputClip, sizeof(cuPaths64));
-  outputClip->init(size(overlaps));
+  outputClip->initShapeOnly(overlaps, 2); // just create the shape and reserve 2 x points for each polygon.
   executeClip<<<10, 128>>>(inputClip, r1 ,outputClip ...);
 
-
+*/
 	cudaFree(r1);
 	cudaFree(filterarr);
 	cudaFree(paths);
