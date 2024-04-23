@@ -280,6 +280,13 @@ __global__ void filter(cuPaths64* input, cuRect64* rect, int* output)
 
 }
 
+__device__ void Append(cuPath64& input, int64_t x, int64_t y)
+{
+	input.points[input.size].x = x;
+	input.points[input.size].y = y;
+	input.size = input.size + 1;
+}
+
 __global__ void testonly_updateverticecount(cuPaths64* input, cuPaths64* output) {
 	int thread_no = gridDim.x * blockDim.x;
 	int id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -288,10 +295,9 @@ __global__ void testonly_updateverticecount(cuPaths64* input, cuPaths64* output)
 
 		for (int j = 0; j < input->cupaths[i].size; ++j) {
 			int next = (i+1) % input->cupaths[i].size;
-			output->cupaths[i].points[2*j].x = input->cupaths[i].points[j].x;
-			output->cupaths[i].points[2*j].y = input->cupaths[i].points[j].y;
-			output->cupaths[i].points[2*j+1].x = (input->cupaths[i].points[j].x + input->cupaths[i].points[next].x)/2 + 2;;
-			output->cupaths[i].points[2*j+1].y = (input->cupaths[i].points[j].y + input->cupaths[i].points[next].y) / 2 + 2;
+			Append(output->cupaths[i], input->cupaths[i].points[j].x, input->cupaths[i].points[j].y);
+			Append(output->cupaths[i], (input->cupaths[i].points[j].x + input->cupaths[i].points[next].x)/2 + 2,
+										 (input->cupaths[i].points[j].y + input->cupaths[i].points[next].y) / 2 + 2);
 		}
 
 	}

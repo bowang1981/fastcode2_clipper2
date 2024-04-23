@@ -7,6 +7,9 @@ if(NOT DEFINED CMAKE_CXX_STANDARD OR CMAKE_CXX_STANDARD LESS 17)
     set(CMAKE_CXX_STANDARD 17)
 endif()
 set(CMAKE_CUDA_STANDARD 17)
+
+
+
 # set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --compiler-options -Werror")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -48,6 +51,7 @@ set(CLIPPER2_SRC
   Clipper2Lib/src/clipper.cu
   Clipper2Lib/src/clipper.area.cu
   Clipper2Lib/src/clipper.rectclip.cu
+  Clipper2Lib/src/clipper.offset.cu
 )
 
 set(CLIPPER2_LIBS "") # one or both of Clipper2/Clipper2Z
@@ -56,6 +60,7 @@ set(CLIPPER2_LIBS "") # one or both of Clipper2/Clipper2Z
 if (NOT (CLIPPER2_USINGZ STREQUAL "ONLY"))
   list(APPEND CLIPPER2_LIBS Clipper2)
   add_library(Clipper2 ${CLIPPER2_INC} ${CLIPPER2_SRC})
+
 
   target_compile_definitions(
     Clipper2

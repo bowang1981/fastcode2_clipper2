@@ -31,6 +31,7 @@ cuPath64::cuPath64()
 void cuPath64::init(const Path64& path)
 {
 	size = path.size();
+	capacity = size;
     cudaError_t err = cudaMallocManaged(&points,size*sizeof(cuPoint64));
     if (err != cudaSuccess)
     {
@@ -42,6 +43,14 @@ void cuPath64::init(const Path64& path)
     	points[i].y = path[i].y;
     }
 }
+/*
+void cuPath64::push_back(int64_t x, int64_t y)
+{
+	points[size].x = x;
+	points[size].y = y;
+	size = size + 1;
+}
+*/
 
 Path64 cuPath64::toPath64() const
 {
@@ -58,8 +67,9 @@ Path64 cuPath64::toPath64() const
 
 void cuPath64::init(int sz)
 {
-	size = sz;
-    cudaError_t err = cudaMallocManaged(&points,size*sizeof(cuPoint64));
+	size = 0;
+	capacity = sz;
+    cudaError_t err = cudaMallocManaged(&points,sz*sizeof(cuPoint64));
     if (err != cudaSuccess)
     {
         std::cout << "Memory allocation failed"<<std::endl;
@@ -108,6 +118,7 @@ Paths64 cuPaths64::toPaths64() const
 void cuPaths64::initShapeOnly(const Paths64& paths, int factor)
 {
 	size = paths.size();
+
     cudaError_t err = cudaMallocManaged(&cupaths, size*sizeof(cuPath64));
     if (err != cudaSuccess)
     {
