@@ -86,7 +86,7 @@ namespace Clipper2Lib {
     }
 
     // this will only process overlaping rectangles
-    inline void RectClip_OpenMP(const Paths64& paths, Rect64& rect, Paths64& result)
+    void RectClip_OpenMP(const Paths64& paths, Rect64& rect, Paths64& result)
     {
         RectClip64 rectClipper(rect);
         #pragma omp parallel for num_threads(32)
