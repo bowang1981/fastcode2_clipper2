@@ -145,12 +145,6 @@ __host__ __device__ bool AreOpposites(Location prev, Location curr)
     return abs(static_cast<int>(prev) - static_cast<int>(curr)) == 2;
   }
 
-__host__ __device__ double CrossProduct(const cuPoint64& pt1, const cuPoint64& pt2, const cuPoint64& pt3)
-  {
-	return (static_cast<double>(pt2.x - pt1.x) * static_cast<double>(pt3.y -
-      pt2.y) - static_cast<double>(pt2.y - pt1.y) * static_cast<double>(pt3.x - pt2.x));
-  }
-
 __host__ __device__ bool IsClockwise(Location prev, Location curr,
     const cuPoint64& prev_pt, const cuPoint64& curr_pt, const cuPoint64& rect_mp)
   {
@@ -279,6 +273,7 @@ __global__ void filter(cuPaths64* input, cuRect64* rect, int* output)
 	}
 
 }
+/*
 
 __device__ void Append(cuPath64& input, int64_t x, int64_t y)
 {
@@ -286,7 +281,7 @@ __device__ void Append(cuPath64& input, int64_t x, int64_t y)
 	input.points[input.size].y = y;
 	input.size = input.size + 1;
 }
-
+*/
 __global__ void testonly_updateverticecount(cuPaths64* input, cuPaths64* output) {
 	int thread_no = gridDim.x * blockDim.x;
 	int id = blockIdx.x * blockDim.x + threadIdx.x;

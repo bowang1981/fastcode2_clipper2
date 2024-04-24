@@ -47,11 +47,12 @@ set(CLIPPER2_INC
 set(CLIPPER2_SRC
   Clipper2Lib/src/clipper.engine.cpp
   Clipper2Lib/src/clipper.offset.cpp
-  Clipper2Lib/src/clipper.rectclip.cpp
   Clipper2Lib/src/clipper.cu
+  Clipper2Lib/src/clipper.rectclip.cpp
   Clipper2Lib/src/clipper.area.cu
   Clipper2Lib/src/clipper.rectclip.cu
   Clipper2Lib/src/clipper.offset.cu
+
 )
 
 set(CLIPPER2_LIBS "") # one or both of Clipper2/Clipper2Z
@@ -67,6 +68,11 @@ if (NOT (CLIPPER2_USINGZ STREQUAL "ONLY"))
     PUBLIC CLIPPER2_MAX_PRECISION=${CLIPPER2_MAX_PRECISION}
   )
 
+set_target_properties(Clipper2
+   PROPERTIES
+       CUDA_SEPARABLE_COMPILATION ON
+       CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
   target_include_directories(Clipper2
     PUBLIC Clipper2Lib/include
   )

@@ -4,46 +4,76 @@
 
 namespace Clipper2Lib {
 
-__device__ void Append(cuPath64& input, int64_t x, int64_t y)
+
+
+__device__ void DoBevel(cuPath64& input, double group_delta_,
+		size_t j, size_t k, cuPath64& output, cuPathD& norms)
 {
-	input.points[input.size].x = x;
-	input.points[input.size].y = y;
-	input.size = input.size + 1;
-}
-/*
- *  We need port the following functions into kernel functions
-__device__ void ClipperOffset::DoBevel(cuPath64* input, size_t j, size_t k, cuPath64* output)
-{
-	PointD pt1, pt2;
+	int64_t x1, y1, x2, y2;
 	if (j == k)
 	{
 		double abs_delta = std::abs(group_delta_);
-		pt1 = PointD(path[j].x - abs_delta * norms[j].x, path[j].y - abs_delta * norms[j].y);
-		pt2 = PointD(path[j].x + abs_delta * norms[j].x, path[j].y + abs_delta * norms[j].y);
+		x1 = input.points[j].x - abs_delta * norms.points[j].x;
+		y1 = input.points[j].y - abs_delta * norms.points[j].y;
+
+		x2 = input.points[j].x + abs_delta * norms.points[j].x;
+		y2 = input.points[j].y + abs_delta * norms.points[j].y;
 	}
 	else
 	{
-		pt1 = PointD(path[j].x + group_delta_ * norms[k].x, path[j].y + group_delta_ * norms[k].y);
-		pt2 = PointD(path[j].x + group_delta_ * norms[j].x, path[j].y + group_delta_ * norms[j].y);
+		x1 = input.points[j].x + group_delta_ * norms.points[k].x;
+		y1 = input.points[j].y + group_delta_ * norms.points[k].y;
+		x2 = input.points[j].x + group_delta_ * norms.points[j].x;
+		y2 = input.points[j].y + group_delta_ * norms.points[j].y;
 	}
-	path_out.push_back(Point64(pt1));
-	path_out.push_back(Point64(pt2));
+	output.push_back(d2i(x1), d2i(y1));
+	output.push_back(d2i(x2), d2i(y2));
 }
 
-void ClipperOffset::DoSquare(const Path64& path, size_t j, size_t k)
+__device__ bool AlmostZero(double value, double epsilon = 0.001)
 {
-	PointD vec;
-	if (j == k)
-		vec = PointD(norms[j].y, -norms[j].x);
-	else
-		vec = GetAvgUnitVector(
-			PointD(-norms[k].y, norms[k].x),
-			PointD(norms[j].y, -norms[j].x));
+	return fabs(value) < epsilon;
+}
 
-	double abs_delta = std::abs(group_delta_);
+__device__ double Hypot(double x, double y)
+{
+	//see https://stackoverflow.com/a/32436148/359538
+	return sqrt(x * x + y * y);
+}
+
+__device__ cuPointD NormalizeVector(const cuPointD& vec)
+{
+	double h = Hypot(vec.x, vec.y);
+	if (AlmostZero(h)) return cuPointD(0,0);
+	double inverseHypot = 1 / h;
+	return cuPointD(vec.x * inverseHypot, vec.y * inverseHypot);
+}
+
+__device__ cuPointD GetAvgUnitVector(const cuPointD& vec1, const cuPointD& vec2)
+{
+	return NormalizeVector(cuPointD(vec1.x + vec2.x, vec1.y + vec2.y));
+}
+/*
+__device__ void ClipperOffset::DoSquare(cuPath64& path, size_t j, size_t k,
+		cuPathD& norms, cuPath64& path_out, double group_delta_)
+{
+	cuPointD vec;
+	if (j == k) {
+		vec.x = norms.points[j].y;
+		vec.y = -norms.points[j].x;
+	}
+	else {
+		vec = GetAvgUnitVector(
+			cuPointD(-norms.points[k].y, norms.points[k].x),
+			cuPointD(norms.points[j].y, -norms.points[j].x));
+	}
+
+	double abs_delta = abs(group_delta_);
 
 	// now offset the original vertex delta units along unit vector
-	PointD ptQ = PointD(path[j]);
+	cuPointD ptQ;
+	ptQ.x = path.points[j].x;
+	ptQ.y = path.points[j].y;
 	ptQ = TranslatePoint(ptQ, abs_delta * vec.x, abs_delta * vec.y);
 	// get perpendicular vertices
 	PointD pt1 = TranslatePoint(ptQ, group_delta_ * vec.y, group_delta_ * -vec.x);
@@ -69,16 +99,16 @@ void ClipperOffset::DoSquare(const Path64& path, size_t j, size_t k)
 		path_out.push_back(Point64(ReflectPoint(pt, ptQ)));
 	}
 }
-
-void ClipperOffset::DoMiter(const Path64& path, size_t j, size_t k, double cos_a)
+*/
+__device__ void DoMiter(const cuPath64& path, size_t j, size_t k, double cos_a,
+		cuPath64& path_out, cuPathD& norms, double group_delta_)
 {
 	double q = group_delta_ / (cos_a + 1);
 
-	path_out.push_back(Point64(
-		path[j].x + (norms[k].x + norms[j].x) * q,
-		path[j].y + (norms[k].y + norms[j].y) * q));
+	path_out.push_back(d2i(path.points[j].x + (norms.points[k].x + norms.points[j].x) * q),
+		d2i(path.points[j].y + (norms.points[k].y + norms.points[j].y) * q));
 }
-
+/*
 void ClipperOffset::DoRound(const Path64& path, size_t j, size_t k, double angle)
 {
 	if (deltaCallback64_) {
@@ -112,7 +142,8 @@ void ClipperOffset::DoRound(const Path64& path, size_t j, size_t k, double angle
 	path_out.push_back(GetPerpendic(path[j], norms[j], group_delta_));
 }
 
-void ClipperOffset::OffsetPoint(Group& group, const Path64& path, size_t j, size_t k)
+__device__ void ClipperOffset::OffsetPoint( cuPath64& path, size_t j, size_t k,
+		cuPathD& norms, double group_delta_)
 {
 	// Let A = change in angle where edges join
 	// A == 0: ie no change in angle (flat join)
@@ -122,16 +153,16 @@ void ClipperOffset::OffsetPoint(Group& group, const Path64& path, size_t j, size
 
 	if (path[j] == path[k]) { k = j; return; }
 
-	double sin_a = CrossProduct(norms[j], norms[k]);
-	double cos_a = DotProduct(norms[j], norms[k]);
+	double sin_a = CrossProduct(norms.points[j], norms.points[k]);
+	double cos_a = DotProduct(norms.points[j], norms.points[k]);
 	if (sin_a > 1.0) sin_a = 1.0;
 	else if (sin_a < -1.0) sin_a = -1.0;
 
-	if (deltaCallback64_) {
+	if (deltaCallback64_) { //needed?
 		group_delta_ = deltaCallback64_(path, norms, j, k);
 		if (group.is_reversed) group_delta_ = -group_delta_;
 	}
-	if (std::fabs(group_delta_) <= floating_point_tolerance)
+	if (fabs(group_delta_) <= floating_point_tolerance)
 	{
 		path_out.push_back(path[j]);
 		return;
@@ -174,8 +205,16 @@ void ClipperOffset::OffsetPolygon(Group& group, const Path64& path)
 }
 */
 
+__global__ void offset_kernel(cuPaths64* input, cuPaths64* output, double group_delta)
+{
+	// call offsetPolygon here
+}
+
 void offset_execute(const Paths64& input, const Rect64& rect, Paths64& output)
 {
+	// once this is done, we can change the Exectue_Internal to call this function
+	// call the kernel offset_kernel here
+	// We only support offsetPolygon
 
 }
 
