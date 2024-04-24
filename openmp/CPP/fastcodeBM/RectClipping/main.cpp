@@ -29,12 +29,17 @@ int main(int argc, char* argv[])
     // cout << test_omp() << std::endl;
     srand((unsigned)time(0));
 
-    RectClippingTest::DoRectanglesTest(5000000);
-    RectClippingTest::DoPolygonTest(50000);
-    // OffsettingTest::doOffsetTest();
-    // OffsettingTest::doOffsetTest1();
-    // UnionTest::DoSquares();
-    UnionTest::DoPolygons();
+    // RectClippingTest::DoRectanglesTest(5000000);
+    // RectClippingTest::DoPolygonTest(50000);
+    // // OffsettingTest::doOffsetTest();
+    // // OffsettingTest::doOffsetTest1();
+    // // UnionTest::DoSquares();
+    // UnionTest::DoPolygons();
+    // // AreaCalcTest::DoTestAreaCalc();
+    // AreaCalcTest::DoTestAreaCalc2();
+
     // AreaCalcTest::DoTestAreaCalc();
-    AreaCalcTest::DoTestAreaCalc2();
+    // AreaCalcTest::DoTestAreaCalc2();
+       
+    AreaCalcTest::DoTestAreaCalc3();
 }
