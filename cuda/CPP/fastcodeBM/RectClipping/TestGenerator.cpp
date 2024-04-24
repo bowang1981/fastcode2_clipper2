@@ -53,8 +53,12 @@ namespace TestGenerator {
         return sub;
     }
 
-    Clipper2Lib::Path64 MakeNoSelfIntesectPolygon(int width, int height, unsigned ctn)
+    Clipper2Lib::Path64 MakeNoSelfIntesectPolygon(int width, int height, unsigned ctn,
+    		int64_t x_offset, int64_t y_offset)
     {
+    	if (ctn < 3) {
+    		ctn = 3;
+    	}
         Path64 result;
         result.reserve(ctn);
         int mid_y = height / 2;
@@ -65,19 +69,43 @@ namespace TestGenerator {
 
         for (int x = 0; x <= max_x; x = x+x_step) {
             int y = mid_y + (rand() % height) / 2;
-            result.push_back(Point64(x, y));
+            result.push_back(Point64(x + x_offset, y+y_offset));
         }
 
         for (int x = max_x; x >= 0; x = x-x_step) {
             int y = mid_y - (rand() % height) / 2;
-            result.push_back(Point64(x, y));
+            result.push_back(Point64(x + x_offset, y + y_offset));
         }
 
         return result;
 
     }
 
-    Clipper2Lib::Paths64 MakeNoSelfIntesectPolygons(int polygon_ctn, int width, int height, unsigned vertCtn)
+
+    Clipper2Lib::Paths64 MakeTestCase(int64_t cnt)
+    {
+    	Paths64 paths;;
+    	int64_t x_off =0, y_off = 0;
+    	int64_t rcnt = static_cast<int64_t>(sqrt(cnt));
+    	int64_t ccnt = cnt / rcnt + 1;
+    	for (int64_t r = 0; r < rcnt; ++r) {
+    		x_off = 0;
+    		int64_t height = (rand() % 300);
+    		for (int64_t c = 0; c < ccnt; ++c) {
+    			int64_t width = (rand() % 300);
+    			Path64 p = MakeNoSelfIntesectPolygon(width, height, rand() % 50,
+    			    		x_off, y_off);
+    			paths.push_back(p);
+    			x_off += width;
+
+    		}
+    		y_off += height;
+    	}
+    	return paths;
+    }
+
+    Clipper2Lib::Paths64 MakeNoSelfIntesectPolygons(int polygon_ctn, int width,
+    		                                   int height, unsigned vertCtn)
     {
         Paths64 result;
         result.reserve(polygon_ctn);
@@ -101,13 +129,29 @@ namespace TestGenerator {
 #endif
     }
 
-    void SaveAndDisplay(Clipper2Lib::Paths64& paths,
-                        Clipper2Lib::FillRule fillrule, const std::string& filepath)
+    void SaveAndDisplay(Clipper2Lib::Paths64& paths,  const std::string& filepath,
+    		            int w, int h,
+                        Clipper2Lib::FillRule fillrule)
     {
         SvgWriter svg;
         SvgAddSubject(svg, paths, fillrule);
         SvgAddSolution(svg, paths, fillrule, false);
-        SvgSaveToFile(svg, filepath, 800, 600, 10);
+        SvgSaveToFile(svg, filepath, w, h, 10);
         System(filepath);
+    }
+    Clipper2Lib::Paths64 CreateTestCase_1K()
+    {
+    	return MakeTestCase(1000);
+    }
+
+    Clipper2Lib::Paths64 CreateTestCase_100K()
+    {
+    	return MakeTestCase(100000);
+    }
+    Clipper2Lib::Paths64 CreateTestCase_1M() {
+    	return MakeTestCase(1000000);
+    }
+    Clipper2Lib::Paths64 CreateTestCase_5M() {
+    	return MakeTestCase(5000000);
     }
 } // end of namespace
