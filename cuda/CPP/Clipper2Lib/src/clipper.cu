@@ -74,6 +74,19 @@ void cuPath64::push_back(int64_t x, int64_t y)
 	size = size + 1;
 }
 
+void cuPath64::append(cuPoint64 pt)
+{
+	points[size].x = pt.x;
+	points[size].y = pt.y;
+	size = size + 1;
+}
+void cuPath64::appendD(cuPointD pt)
+{
+	points[size].x = d2i(pt.x);
+	points[size].y = d2i(pt.y);
+	size = size + 1;
+}
+
 __device__ void Append(cuPath64& input, int64_t x, int64_t y)
 {
 	input.points[input.size].x = x;
@@ -208,6 +221,10 @@ __host__ __device__ double CrossProduct(const cuPointD& pt1, const cuPointD& pt2
       pt2.y) - static_cast<double>(pt2.y - pt1.y) * static_cast<double>(pt3.x - pt2.x));
   }
 
+__host__ __device__ double CrossProduct(const cuPointD& vec1, const cuPointD& vec2)
+{
+  return static_cast<double>(vec1.y * vec2.x) - static_cast<double>(vec2.y * vec1.x);
+}
 __host__ __device__ double DotProduct(const cuPointD& vec1, const cuPointD& vec2)
 {
   return (vec1.x * vec2.x) + (vec1.y * vec2.y);

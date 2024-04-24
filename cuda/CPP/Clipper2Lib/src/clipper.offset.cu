@@ -12,7 +12,7 @@ __device__ void DoBevel(cuPath64& input, double group_delta_,
 	int64_t x1, y1, x2, y2;
 	if (j == k)
 	{
-		double abs_delta = std::abs(group_delta_);
+		double abs_delta = abs(group_delta_);
 		x1 = input.points[j].x - abs_delta * norms.points[j].x;
 		y1 = input.points[j].y - abs_delta * norms.points[j].y;
 
@@ -54,12 +54,60 @@ __device__ cuPointD GetAvgUnitVector(const cuPointD& vec1, const cuPointD& vec2)
 	return NormalizeVector(cuPointD(vec1.x + vec2.x, vec1.y + vec2.y));
 }
 
+__device__ cuPointD TranslatePoint(const cuPointD& pt, double dx, double dy)
+{
+	return cuPointD(pt.x + dx, pt.y + dy);
+}
+
+__device__ cuPointD ReflectPoint(const cuPointD& pt, const cuPointD& pivot)
+{
+	return cuPointD(pivot.x + (pivot.x - pt.x), pivot.y + (pivot.y - pt.y));
+}
+
+__device__ cuPointD IntersectPoint(const cuPointD& pt1a, const cuPointD& pt1b,
+	const cuPointD& pt2a, const cuPointD& pt2b)
+{
+	if (pt1a.x == pt1b.x) //vertical
+	{
+		if (pt2a.x == pt2b.x) return cuPointD(0, 0);
+
+		double m2 = (pt2b.y - pt2a.y) / (pt2b.x - pt2a.x);
+		double b2 = pt2a.y - m2 * pt2a.x;
+		return cuPointD(pt1a.x, m2 * pt1a.x + b2);
+	}
+	else if (pt2a.x == pt2b.x) //vertical
+	{
+		double m1 = (pt1b.y - pt1a.y) / (pt1b.x - pt1a.x);
+		double b1 = pt1a.y - m1 * pt1a.x;
+		return cuPointD(pt2a.x, m1 * pt2a.x + b1);
+	}
+	else
+	{
+		double m1 = (pt1b.y - pt1a.y) / (pt1b.x - pt1a.x);
+		double b1 = pt1a.y - m1 * pt1a.x;
+		double m2 = (pt2b.y - pt2a.y) / (pt2b.x - pt2a.x);
+		double b2 = pt2a.y - m2 * pt2a.x;
+		if (m1 == m2) return cuPointD(0, 0);
+		double x = (b2 - b1) / (m1 - m2);
+		return cuPointD(x, m1 * x + b1);
+	}
+}
+
+__device__ cuPoint64 GetPerpendic(const cuPoint64& pt, const cuPointD& norm, double delta)
+{
+	return cuPoint64(d2i(pt.x + norm.x * delta), d2i(pt.y + norm.y * delta));
+}
+
+__device__ cuPointD GetPerpendicD(const cuPoint64& pt, const cuPointD& norm, double delta)
+{
+	return cuPointD(pt.x + norm.x * delta, pt.y + norm.y * delta);
+}
+
 __device__ void DoSquare(cuPath64& path, size_t j, size_t k,
 		cuPathD& norms, cuPath64& path_out, double group_delta_)
 {
-	//TODO: Fred, please update the following codes to make it work on GPU
-	/*
-	cuPointD vec;
+
+	cuPointD vec(0, 0);
 	if (j == k) {
 		vec.x = norms.points[j].y;
 		vec.y = -norms.points[j].x;
@@ -73,33 +121,35 @@ __device__ void DoSquare(cuPath64& path, size_t j, size_t k,
 	double abs_delta = abs(group_delta_);
 
 	// now offset the original vertex delta units along unit vector
-	cuPointD ptQ;
+	cuPointD ptQ(0, 0);
 	ptQ.x = path.points[j].x;
 	ptQ.y = path.points[j].y;
 	ptQ = TranslatePoint(ptQ, abs_delta * vec.x, abs_delta * vec.y);
 	// get perpendicular vertices
-	PointD pt1 = TranslatePoint(ptQ, group_delta_ * vec.y, group_delta_ * -vec.x);
-	PointD pt2 = TranslatePoint(ptQ, group_delta_ * -vec.y, group_delta_ * vec.x);
+	cuPointD pt1 = TranslatePoint(ptQ, group_delta_ * vec.y, group_delta_ * -vec.x);
+	cuPointD pt2 = TranslatePoint(ptQ, group_delta_ * -vec.y, group_delta_ * vec.x);
 	// get 2 vertices along one edge offset
-	PointD pt3 = GetPerpendicD(path[k], norms[k], group_delta_);
+	cuPointD pt3 = GetPerpendicD(path.points[k], norms.points[k], group_delta_);
 	if (j == k)
 	{
-		PointD pt4 = PointD(pt3.x + vec.x * group_delta_, pt3.y + vec.y * group_delta_);
-		PointD pt = IntersectPoint(pt1, pt2, pt3, pt4);
+		cuPointD pt4 = cuPointD(pt3.x + vec.x * group_delta_, pt3.y + vec.y * group_delta_);
+		cuPointD pt = IntersectPoint(pt1, pt2, pt3, pt4);
 
 		//get the second intersect point through reflecion
-		path_out.push_back(Point64(ReflectPoint(pt, ptQ)));
-		path_out.push_back(Point64(pt));
+		cuPointD d1 = ReflectPoint(pt, ptQ);
+		path_out.push_back(d2i(d1.x), d2i(d1.y));
+		path_out.push_back(d2i(pt.x), d2i(pt.y));
 	}
 	else
 	{
-		PointD pt4 = GetPerpendicD(path[j], norms[k], group_delta_);
-		PointD pt = IntersectPoint(pt1, pt2, pt3, pt4);
+		cuPointD pt4 = GetPerpendicD(path.points[j], norms.points[k], group_delta_);
+		cuPointD pt = IntersectPoint(pt1, pt2, pt3, pt4);
 
-		path_out.push_back(Point64(pt));
+		path_out.push_back(d2i(pt.x), d2i(pt.y));
 		//get the second intersect point through reflecion
-		path_out.push_back(Point64(ReflectPoint(pt, ptQ)));
-	}*/
+		cuPointD d1 = ReflectPoint(pt, ptQ);
+		path_out.push_back(d2i(d1.x), d2i(d1.y));
+	}
 }
 
 __device__ void DoMiter(const cuPath64& path, size_t j, size_t k, double cos_a,
@@ -111,11 +161,11 @@ __device__ void DoMiter(const cuPath64& path, size_t j, size_t k, double cos_a,
 		d2i(path.points[j].y + (norms.points[k].y + norms.points[j].y) * q));
 }
 
-void DoRound(cuPath64& path, size_t j, size_t k,
+__device__ void DoRound(cuPath64& path, size_t j, size_t k,
 						double angle, double group_delta_, cuPath64& path_out,
-						cuPathD& norms)
+						cuPathD& norms, double steps_per_rad_, double step_sin_,
+						double step_cos_)
 {
-//TODO: Fred, please update the following codes to make it work on GPU
 	/*if (deltaCallback64_) {
 		// Bo: this code should not be needed, as we only support the simple version
 		// when deltaCallback64_ is assigned, group_delta_ won't be constant,
@@ -130,27 +180,35 @@ void DoRound(cuPath64& path, size_t j, size_t k,
 		if (group_delta_ < 0.0) step_sin_ = -step_sin_;
 		steps_per_rad_ = steps_per_360 / (2 * PI);
 	}*/
-/*
-	Point64 pt = path[j];
-	PointD offsetVec = PointD(norms[k].x * group_delta_, norms[k].y * group_delta_);
 
-	if (j == k) offsetVec.Negate();
+	cuPoint64 pt = path.points[j];
+	cuPointD offsetVec = cuPointD(norms.points[k].x * group_delta_, norms.points[k].y * group_delta_);
 
-	path_out.push_back(Point64(pt.x + offsetVec.x, pt.y + offsetVec.y));
-	int steps = static_cast<int>(std::ceil(steps_per_rad_ * std::abs(angle))); // #448, #456
+	if (j == k)  {
+		offsetVec.x = -offsetVec.x;
+		offsetVec.y = -offsetVec.y;
+		//offsetVec.Negate();
+	}
+
+	path_out.push_back(d2i(pt.x + offsetVec.x), d2i(pt.y + offsetVec.y));
+	int steps = d2i(ceil(steps_per_rad_ * abs(angle))); // #448, #456
 	for (int i = 1; i < steps; ++i) // ie 1 less than steps
 	{
-		offsetVec = PointD(offsetVec.x * step_cos_ - step_sin_ * offsetVec.y,
+		offsetVec = cuPointD(offsetVec.x * step_cos_ - step_sin_ * offsetVec.y,
 			offsetVec.x * step_sin_ + offsetVec.y * step_cos_);
 
-		path_out.push_back(Point64(pt.x + offsetVec.x, pt.y + offsetVec.y));
+		path_out.push_back(d2i(pt.x + offsetVec.x), d2i(pt.y + offsetVec.y));
 	}
-	path_out.push_back(GetPerpendic(path[j], norms[j], group_delta_));
-	*/
+	cuPoint64 p1 = GetPerpendic(path.points[j], norms.points[j], group_delta_);
+	path_out.push_back(p1.x, p1.y);
+
 }
 
 __device__ void OffsetPoint( cuPath64& path, size_t j, size_t k,
-		cuPathD& norms, double group_delta_)
+		cuPathD& norms, double group_delta_, cuPath64& path_out,
+		double steps_per_rad_, double step_sin_,
+		double step_cos_, int join_type_,
+		double floating_point_tolerance, double temp_lim_)
 {
 	//TODO: Bo to finish
 	// Let A = change in angle where edges join
@@ -158,62 +216,73 @@ __device__ void OffsetPoint( cuPath64& path, size_t j, size_t k,
 	// A == PI: edges 'spike'
 	// sin(A) < 0: right turning
 	// cos(A) < 0: change in angle is more than 90 degree
-/*
-	if (path[j] == path[k]) { k = j; return; }
+
+	if (path.points[j].x == path.points[k].x &&
+			path.points[j].y == path.points[k].y) { k = j; return; }
 
 	double sin_a = CrossProduct(norms.points[j], norms.points[k]);
 	double cos_a = DotProduct(norms.points[j], norms.points[k]);
 	if (sin_a > 1.0) sin_a = 1.0;
 	else if (sin_a < -1.0) sin_a = -1.0;
 
-	if (deltaCallback64_) { //needed?
+	/*if (deltaCallback64_) { //Bo: not needed for our test?
 		group_delta_ = deltaCallback64_(path, norms, j, k);
 		if (group.is_reversed) group_delta_ = -group_delta_;
-	}
+	}*/
 	if (fabs(group_delta_) <= floating_point_tolerance)
 	{
-		path_out.push_back(path[j]);
+		path_out.append(path.points[j]);
 		return;
 	}
 
 	if (cos_a > -0.99 && (sin_a * group_delta_ < 0)) // test for concavity first (#593)
 	{
 		// is concave
-		path_out.push_back(GetPerpendic(path[j], norms[k], group_delta_));
+		path_out.append(GetPerpendic(path.points[j], norms.points[k], group_delta_));
 		// this extra point is the only (simple) way to ensure that
 	  // path reversals are fully cleaned with the trailing clipper
-		path_out.push_back(path[j]); // (#405)
-		path_out.push_back(GetPerpendic(path[j], norms[j], group_delta_));
+		path_out.append(path.points[j]); // (#405)
+		path_out.append(GetPerpendic(path.points[j], norms.points[j], group_delta_));
 	}
-	else if (cos_a > 0.999 && join_type_ != JoinType::Round)
+	else if (cos_a > 0.999 && join_type_ != 2) // Clipper2Lib::JoinType::Round)
 	{
+		// enum class JoinType { Square, Bevel, Round, Miter };
 		// almost straight - less than 2.5 degree (#424, #482, #526 & #724)
-		DoMiter(path, j, k, cos_a);
+		//DoMiter(const cuPath64& path, size_t j, size_t k, double cos_a,
+			//	cuPath64& path_out, cuPathD& norms, double group_delta_)
+		DoMiter(path, j, k, cos_a, path_out, norms, group_delta_);
 	}
-	else if (join_type_ == JoinType::Miter)
+	else if (join_type_ == 3) // Clipper2Lib::JoinType::Miter)
 	{
 		// miter unless the angle is sufficiently acute to exceed ML
-		if (cos_a > temp_lim_ - 1) DoMiter(path, j, k, cos_a);
-		else DoSquare(path, j, k);
+		if (cos_a > temp_lim_ - 1) DoMiter(path, j, k, cos_a,  path_out, norms, group_delta_);
+		else DoSquare(path, j, k, norms, path_out, group_delta_);
 	}
-	else if (join_type_ == JoinType::Round)
-		DoRound(path, j, k, std::atan2(sin_a, cos_a));
-	else if ( join_type_ == JoinType::Bevel)
-		DoBevel(path, j, k);
+	else if (join_type_ == 2) // Clipper2Lib::JoinType::Round)
+		DoRound(path, j, k, std::atan2(sin_a, cos_a), group_delta_, path_out,
+				norms,  steps_per_rad_,  step_sin_,
+				 step_cos_);
+	else if ( join_type_ == 1) // Clipper2Lib::JoinType::Bevel)
+		DoBevel(path, group_delta_,j, k,
+				path_out, norms);
 	else
-		DoSquare(path, j, k);
-		*/
+		DoSquare(path, j, k, norms, path_out, group_delta_);
+
 }
 
-__device__ void OffsetPolygon(cuPath64& path, cuPath64& path_out, double group_delta)
+__device__ void OffsetPolygon(cuPath64& path, cuPath64& path_out, double group_delta,
+		cuPathD& norms,
+		double steps_per_rad_, double step_sin_,
+		double step_cos_, int join_type_,
+		double floating_point_tolerance, double temp_lim_)
 {
 	// TODO: Bo to finish
-	/*
-	path_out.clear();
-	for (Path64::size_type j = 0, k = path.size() -1; j < path.size(); k = j, ++j)
-		OffsetPoint(group, path, j, k);
-	solution.push_back(path_out);
-	*/
+	for (int j = 0, k = path.size -1; j < path.size; k = j, ++j) {
+		OffsetPoint(path, j, k, norms, group_delta, path_out, steps_per_rad_, step_sin_,
+				 step_cos_, join_type_,
+				 floating_point_tolerance,  temp_lim_ );
+	}
+
 }
 
 
