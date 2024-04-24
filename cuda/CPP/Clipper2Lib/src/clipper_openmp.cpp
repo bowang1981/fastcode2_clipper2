@@ -1,7 +1,7 @@
 #include <omp.h>
 #include "clipper2/clipper_openmp.h"
 namespace Clipper2Lib {
-    inline Paths64 Union_OpenMP(const Paths64& subjects, FillRule fillrule, int thread_num )
+    Paths64 Union_OpenMP(const Paths64& subjects, FillRule fillrule, int thread_num )
     {
         std::vector<Paths64> subjectsVec, resultsVec;
         int sz1 = subjects.size() / thread_num + 1;
@@ -31,7 +31,7 @@ namespace Clipper2Lib {
         return result;
     }
 
-    inline double Area_OpenMP(const Path64& path, int num_t)
+    double Area_OpenMP(const Path64& path, int num_t)
     {
         size_t cnt = path.size();
         if (cnt < 3) return 0.0;
@@ -74,7 +74,7 @@ namespace Clipper2Lib {
     }
 
 // In this version, we do the parallization in each polygon. We'll have another version on high level.
-    inline double Area_OpenMP(const Paths64& paths, int thread_num)
+    double Area_OpenMP(const Paths64& paths, int thread_num)
     {
         double a = 0.0;
         for (Paths64::const_iterator paths_iter = paths.cbegin();
