@@ -28,6 +28,8 @@ if (APPLE)
     set(CMAKE_SHARED_LIBRARY_SUFFIX ".dylib")
 endif ()
 
+find_package(OpenMP)
+
 include(GNUInstallDirs)
 
 set(CLIPPER2_INC_FOLDER ${PROJECT_SOURCE_DIR}/Clipper2Lib/include/clipper2)
@@ -52,6 +54,7 @@ set(CLIPPER2_SRC
   Clipper2Lib/src/clipper.area.cu
   Clipper2Lib/src/clipper.rectclip.cu
   Clipper2Lib/src/clipper.offset.cu
+  Clipper2Lib/src/clipper_openmp.cpp
 
 )
 
@@ -61,7 +64,7 @@ set(CLIPPER2_LIBS "") # one or both of Clipper2/Clipper2Z
 if (NOT (CLIPPER2_USINGZ STREQUAL "ONLY"))
   list(APPEND CLIPPER2_LIBS Clipper2)
   add_library(Clipper2 ${CLIPPER2_INC} ${CLIPPER2_SRC})
-
+ target_link_libraries(Clipper2 PUBLIC OpenMP::OpenMP_CXX)
 
   target_compile_definitions(
     Clipper2
