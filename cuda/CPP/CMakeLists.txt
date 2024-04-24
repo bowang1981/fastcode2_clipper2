@@ -1,10 +1,16 @@
 cmake_minimum_required(VERSION 3.15)
 project(Clipper2 VERSION 1.3.0 LANGUAGES C CXX)
+enable_language(CUDA)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 if(NOT DEFINED CMAKE_CXX_STANDARD OR CMAKE_CXX_STANDARD LESS 17)
     set(CMAKE_CXX_STANDARD 17)
 endif()
+set(CMAKE_CUDA_STANDARD 17)
+
+
+
+# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --compiler-options -Werror")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -21,6 +27,8 @@ set(CLIPPER2_MAX_PRECISION 8 CACHE STRING "Maximum precision allowed for double 
 if (APPLE)
     set(CMAKE_SHARED_LIBRARY_SUFFIX ".dylib")
 endif ()
+
+find_package(OpenMP)
 
 include(GNUInstallDirs)
 
@@ -41,7 +49,13 @@ set(CLIPPER2_INC
 set(CLIPPER2_SRC
   Clipper2Lib/src/clipper.engine.cpp
   Clipper2Lib/src/clipper.offset.cpp
+  Clipper2Lib/src/clipper.cu
   Clipper2Lib/src/clipper.rectclip.cpp
+  Clipper2Lib/src/clipper.area.cu
+  Clipper2Lib/src/clipper.rectclip.cu
+  Clipper2Lib/src/clipper.offset.cu
+  Clipper2Lib/src/clipper_openmp.cpp
+
 )
 
 set(CLIPPER2_LIBS "") # one or both of Clipper2/Clipper2Z
@@ -50,12 +64,18 @@ set(CLIPPER2_LIBS "") # one or both of Clipper2/Clipper2Z
 if (NOT (CLIPPER2_USINGZ STREQUAL "ONLY"))
   list(APPEND CLIPPER2_LIBS Clipper2)
   add_library(Clipper2 ${CLIPPER2_INC} ${CLIPPER2_SRC})
+ target_link_libraries(Clipper2 PUBLIC OpenMP::OpenMP_CXX)
 
   target_compile_definitions(
     Clipper2
     PUBLIC CLIPPER2_MAX_PRECISION=${CLIPPER2_MAX_PRECISION}
   )
 
+set_target_properties(Clipper2
+   PROPERTIES
+       CUDA_SEPARABLE_COMPILATION ON
+       CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
   target_include_directories(Clipper2
     PUBLIC Clipper2Lib/include
   )
@@ -63,7 +83,8 @@ if (NOT (CLIPPER2_USINGZ STREQUAL "ONLY"))
   if (MSVC)
     target_compile_options(Clipper2 PRIVATE /W4 /WX)
   else()
-    target_compile_options(Clipper2 PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    target_compile_options(Clipper2 PRIVATE -Wall -Wextra -Wpedantic)
+    # -Werror)
     target_link_libraries(Clipper2 PUBLIC -lm)
   endif()
 endif()

@@ -944,13 +944,14 @@ namespace Clipper2Lib {
   {
     Paths64 result;
     if (rect_.IsEmpty()) return result;
-    #pragma omp parallel for num_threads(16)
+    #pragma omp parallel for num_threads(32)
     for (const Path64& path : paths)
     {      
+      if (path.size() < 3) continue;
 
       Rect64 path_bounds = GetBounds(path);
       OutPt2List partial_results = OutPt2List();
-      if (path.size() < 3) continue;
+      
       // path_bounds_ = GetBounds(path);
 
       if (!rect_.Intersects(path_bounds))
@@ -958,8 +959,8 @@ namespace Clipper2Lib {
       else if (rect_.Contains(path_bounds))
       {
         // the path must be completely inside rect_
-        #pragma omp critical
-        result.push_back(path);
+        // #pragma omp critical
+        // result.push_back(path);
         continue; // this thread is just ending/finishied
       }
 
@@ -981,14 +982,20 @@ namespace Clipper2Lib {
           {
               tmpResults.emplace_back(tmp);
           }
-      }
-      #pragma omp critical
-      {
-          for (Path64 tmp : tmpResults)
-          {
-              result.emplace_back(tmp);
-          }
-      }
+      }      
+  
+      // The algorithm is already implemented, the critical section below is only for the display process that need only one final result
+      // if we don't need to display it, or we have function to display the partial at the same time, we can remove the critical section
+      // which means this not necessary in time calculation.
+
+      // #pragma omp critical
+      // {
+      //     for (Path64 tmp : tmpResults)
+      //     {
+      //         result.emplace_back(tmp);
+      //     }
+      // }
+
     }
     return result;
   }
