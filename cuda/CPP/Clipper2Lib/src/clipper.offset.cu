@@ -53,10 +53,12 @@ __device__ cuPointD GetAvgUnitVector(const cuPointD& vec1, const cuPointD& vec2)
 {
 	return NormalizeVector(cuPointD(vec1.x + vec2.x, vec1.y + vec2.y));
 }
-/*
-__device__ void ClipperOffset::DoSquare(cuPath64& path, size_t j, size_t k,
+
+__device__ void DoSquare(cuPath64& path, size_t j, size_t k,
 		cuPathD& norms, cuPath64& path_out, double group_delta_)
 {
+	//TODO: Fred, please update the following codes to make it work on GPU
+	/*
 	cuPointD vec;
 	if (j == k) {
 		vec.x = norms.points[j].y;
@@ -97,9 +99,9 @@ __device__ void ClipperOffset::DoSquare(cuPath64& path, size_t j, size_t k,
 		path_out.push_back(Point64(pt));
 		//get the second intersect point through reflecion
 		path_out.push_back(Point64(ReflectPoint(pt, ptQ)));
-	}
+	}*/
 }
-*/
+
 __device__ void DoMiter(const cuPath64& path, size_t j, size_t k, double cos_a,
 		cuPath64& path_out, cuPathD& norms, double group_delta_)
 {
@@ -108,10 +110,14 @@ __device__ void DoMiter(const cuPath64& path, size_t j, size_t k, double cos_a,
 	path_out.push_back(d2i(path.points[j].x + (norms.points[k].x + norms.points[j].x) * q),
 		d2i(path.points[j].y + (norms.points[k].y + norms.points[j].y) * q));
 }
-/*
-void ClipperOffset::DoRound(const Path64& path, size_t j, size_t k, double angle)
+
+void DoRound(cuPath64& path, size_t j, size_t k,
+						double angle, double group_delta_, cuPath64& path_out,
+						cuPathD& norms)
 {
-	if (deltaCallback64_) {
+//TODO: Fred, please update the following codes to make it work on GPU
+	/*if (deltaCallback64_) {
+		// Bo: this code should not be needed, as we only support the simple version
 		// when deltaCallback64_ is assigned, group_delta_ won't be constant,
 		// so we'll need to do the following calculations for *every* vertex.
 		double abs_delta = std::fabs(group_delta_);
@@ -123,8 +129,8 @@ void ClipperOffset::DoRound(const Path64& path, size_t j, size_t k, double angle
 		step_cos_ = std::cos(2 * PI / steps_per_360);
 		if (group_delta_ < 0.0) step_sin_ = -step_sin_;
 		steps_per_rad_ = steps_per_360 / (2 * PI);
-	}
-
+	}*/
+/*
 	Point64 pt = path[j];
 	PointD offsetVec = PointD(norms[k].x * group_delta_, norms[k].y * group_delta_);
 
@@ -140,17 +146,19 @@ void ClipperOffset::DoRound(const Path64& path, size_t j, size_t k, double angle
 		path_out.push_back(Point64(pt.x + offsetVec.x, pt.y + offsetVec.y));
 	}
 	path_out.push_back(GetPerpendic(path[j], norms[j], group_delta_));
+	*/
 }
 
-__device__ void ClipperOffset::OffsetPoint( cuPath64& path, size_t j, size_t k,
+__device__ void OffsetPoint( cuPath64& path, size_t j, size_t k,
 		cuPathD& norms, double group_delta_)
 {
+	//TODO: Bo to finish
 	// Let A = change in angle where edges join
 	// A == 0: ie no change in angle (flat join)
 	// A == PI: edges 'spike'
 	// sin(A) < 0: right turning
 	// cos(A) < 0: change in angle is more than 90 degree
-
+/*
 	if (path[j] == path[k]) { k = j; return; }
 
 	double sin_a = CrossProduct(norms.points[j], norms.points[k]);
@@ -194,24 +202,30 @@ __device__ void ClipperOffset::OffsetPoint( cuPath64& path, size_t j, size_t k,
 		DoBevel(path, j, k);
 	else
 		DoSquare(path, j, k);
+		*/
 }
 
-void ClipperOffset::OffsetPolygon(Group& group, const Path64& path)
+__device__ void OffsetPolygon(cuPath64& path, cuPath64& path_out, double group_delta)
 {
+	// TODO: Bo to finish
+	/*
 	path_out.clear();
 	for (Path64::size_type j = 0, k = path.size() -1; j < path.size(); k = j, ++j)
 		OffsetPoint(group, path, j, k);
 	solution.push_back(path_out);
+	*/
 }
-*/
+
 
 __global__ void offset_kernel(cuPaths64* input, cuPaths64* output, double group_delta)
 {
+	// TODO: Bo to finish
 	// call offsetPolygon here
 }
 
 void offset_execute(const Paths64& input, const Rect64& rect, Paths64& output)
 {
+	//TODO: Bo to finish
 	// once this is done, we can change the Exectue_Internal to call this function
 	// call the kernel offset_kernel here
 	// We only support offsetPolygon

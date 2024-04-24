@@ -64,4 +64,15 @@ float area_single(const Path64& path) {
 
 }
 
+__global__ void area_paths_kernel(cuPaths64* path, float* res)
+{
+	// TODO David, please add.
+}
+
+float area_paths(const Paths64& paths)
+{
+	// TODO: David, please add here
+	return 0;
+}
+
 }
