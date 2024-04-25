@@ -31,8 +31,8 @@ struct cuRect64 {
 
 struct cuPath64 {
 	__host__ cuPath64();
-	__host__ void init(const Path64& path);
-	__host__ void init(int sz);
+	__host__ void init(const Path64& path, cuPoint64* start);
+	__host__ void init(int sz, cuPoint64* start);
 	__host__ ~cuPath64();
 	__host__ Path64 toPath64() const;
 	__host__ __device__ void push_back(int64_t x, int64_t y);
@@ -56,11 +56,12 @@ struct cuPathD {
 struct cuPaths64 {
 	__host__ cuPaths64();
 	__host__ void init(const Paths64& paths);
-	__host__ void init(int sz);
+	// __host__ void init(int sz);
 	__host__ void initShapeOnly(const Paths64& paths, int factor);
 	__host__ Paths64 toPaths64() const;
 	__host__ ~cuPaths64();
 	cuPath64* cupaths;
+	cuPoint64* allpoints;
 	int size;
 };
 

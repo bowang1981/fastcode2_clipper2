@@ -316,7 +316,6 @@ __global__ void offset_kernel(cuPaths64* input, cuPaths64* output,
 	for (int i = id * batch; i < (id+1) * batch && i < input->size; ++i) {
 		OffsetPolygon(input->cupaths[i], output->cupaths[i], group_delta, param, debug);
 	}
-
 }
 
 
@@ -326,10 +325,6 @@ void offset_execute(const Paths64& input, double delta, Paths64& output,  const 
 	// once this is done, we can change the Exectue_Internal to call this function
 	// call the kernel offset_kernel here
 	// We only support offsetPolygon
-	int total_points = 0;
-	for (auto path : input) {
-		total_points += path.size();
-	}
 
 	cuPaths64* paths;
 	cudaMallocManaged(&paths, sizeof(cuPaths64));
@@ -348,13 +343,13 @@ void offset_execute(const Paths64& input, double delta, Paths64& output,  const 
 	cuparam->temp_lim_ = param.temp_lim_;
 	int* debug;
 	cudaMallocManaged(&debug, 16 * sizeof(int));
-	// debug[0] = 1;
-	std::cout << "Luanch CUDA:" << total_points << std::endl;
+
+
+	std::cout << "Luanch CUDA:"  << std::endl;
 	offset_kernel<<<8, 128>>>(paths, res, delta, cuparam, debug);
 	cudaDeviceSynchronize();
 
 	output = res->toPaths64();
-	//std::cout << "Output Size 2!!!!!!!!!!!!!!:" << output.size() << std::endl;
 
 	std::cout << std::endl;
 	cudaFree(debug);

@@ -42,12 +42,13 @@ float area_single(const Path64& path) {
 	int cnt = path.size();
 	cuPath64* p1;
     cudaError_t err = cudaMallocManaged(&p1, sizeof(cuPath64));
-
+    cuPoint64* points;
+    cudaMallocManaged(&points, path.size() * sizeof(cuPoint64));
     if (err != cudaSuccess)
     {
         std::cout << "Memory allocation failed"<<std::endl;
     }
-    p1->init(path);
+    p1->init(path, points);
 
 	float* res;
 	cudaMallocManaged(&res, sizeof(float));
@@ -60,6 +61,7 @@ float area_single(const Path64& path) {
 	float area1 = (*res) * 0.5;
 	cudaFree(res);
 	cudaFree(p1);
+	cudaFree(points);
 	return area1;
 
 }
