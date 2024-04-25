@@ -189,7 +189,7 @@ __device__ void DoMiter(const cuPath64& path, size_t j, size_t k, double cos_a,
 
 __device__ void DoRound(cuPath64& path, size_t j, size_t k,
 						double angle, double group_delta_, cuPath64& path_out,
-						OffsetParam* param)
+						OffsetParam* param, int* debug)
 {
 	/*if (deltaCallback64_) {
 		// Bo: this code should not be needed, as we only support the simple version
@@ -218,12 +218,14 @@ __device__ void DoRound(cuPath64& path, size_t j, size_t k,
 
 	path_out.push_back(d2i(pt.x + offsetVec.x), d2i(pt.y + offsetVec.y));
 	int steps = d2i(ceil(param->steps_per_rad_ * abs(angle))); // #448, #456
+	int range = steps / 2;
 	for (int i = 1; i < steps; ++i) // ie 1 less than steps
 	{
 		offsetVec = cuPointD(offsetVec.x * param->step_cos_ - param->step_sin_ * offsetVec.y,
 			offsetVec.x * param->step_sin_ + offsetVec.y * param->step_cos_);
-
-		path_out.push_back(d2i(pt.x + offsetVec.x), d2i(pt.y + offsetVec.y));
+		if ((steps % range) == 0) {
+			path_out.push_back(d2i(pt.x + offsetVec.x), d2i(pt.y + offsetVec.y));
+		}
 	}
 	cuPoint64 p1 = GetPerpendic(path.points[j], normj, group_delta_);
 	path_out.push_back(p1.x, p1.y);
@@ -232,7 +234,7 @@ __device__ void DoRound(cuPath64& path, size_t j, size_t k,
 
 __device__ void OffsetPoint( cuPath64& path, size_t j, size_t k,
 		double group_delta_, cuPath64& path_out,
-		OffsetParam* param)
+		OffsetParam* param, int* debug)
 {
 	//TODO: Bo to finish
 	// Let A = change in angle where edges join
@@ -284,7 +286,7 @@ __device__ void OffsetPoint( cuPath64& path, size_t j, size_t k,
 		else DoSquare(path, j, k, path_out, group_delta_);
 	}
 	else if (param->join_type_ == 2) // Clipper2Lib::JoinType::Round)
-		DoRound(path, j, k, std::atan2(sin_a, cos_a), group_delta_, path_out, param);
+		DoRound(path, j, k, atan2(sin_a, cos_a), group_delta_, path_out, param, debug);
 	else if ( param->join_type_ == 1) // Clipper2Lib::JoinType::Bevel)
 		DoBevel(path, group_delta_,j, k, path_out);
 	else
@@ -293,25 +295,26 @@ __device__ void OffsetPoint( cuPath64& path, size_t j, size_t k,
 }
 
 __device__ void OffsetPolygon(cuPath64& path, cuPath64& path_out, double group_delta,
-		 OffsetParam* param)
+		 OffsetParam* param, int* debug)
 {
 	// TODO: Bo to finish
 	for (int j = 0, k = path.size -1; j < path.size; k = j, ++j) {
-		OffsetPoint(path, j, k, group_delta, path_out, param);
+		OffsetPoint(path, j, k, group_delta, path_out, param, debug);
 	}
 
 }
 
 
 __global__ void offset_kernel(cuPaths64* input, cuPaths64* output,
-							double group_delta, OffsetParam* param)
+							double group_delta, OffsetParam* param, int* debug)
 {
+
 	// call offsetPolygon here
 	int total = gridDim.x * blockDim.x;
 	int batch = input->size / total + 1;
 	int id = blockIdx.x * blockDim.x + threadIdx.x;
 	for (int i = id * batch; i < (id+1) * batch && i < input->size; ++i) {
-		OffsetPolygon(input->cupaths[i], output->cupaths[i], group_delta, param);
+		OffsetPolygon(input->cupaths[i], output->cupaths[i], group_delta, param, debug);
 	}
 
 }
@@ -323,6 +326,10 @@ void offset_execute(const Paths64& input, double delta, Paths64& output,  const 
 	// once this is done, we can change the Exectue_Internal to call this function
 	// call the kernel offset_kernel here
 	// We only support offsetPolygon
+	int total_points = 0;
+	for (auto path : input) {
+		total_points += path.size();
+	}
 
 	cuPaths64* paths;
 	cudaMallocManaged(&paths, sizeof(cuPaths64));
@@ -337,12 +344,20 @@ void offset_execute(const Paths64& input, double delta, Paths64& output,  const 
 	cuparam->join_type_ = param.join_type_;
 	cuparam->step_cos_ = param.step_cos_;
 	cuparam->step_sin_ = param.step_sin_;
-	cuparam->steps_per_rad_ = param.steps_per_rad_;
+	cuparam->steps_per_rad_ = param.steps_per_rad_;//
 	cuparam->temp_lim_ = param.temp_lim_;
-	std::cout << "Luanch CUDA" << std::endl;
-	offset_kernel<<<1, 128>>>(paths, res, delta, cuparam);
+	int* debug;
+	cudaMallocManaged(&debug, 16 * sizeof(int));
+	// debug[0] = 1;
+	std::cout << "Luanch CUDA:" << total_points << std::endl;
+	offset_kernel<<<8, 128>>>(paths, res, delta, cuparam, debug);
 	cudaDeviceSynchronize();
+
 	output = res->toPaths64();
+	//std::cout << "Output Size 2!!!!!!!!!!!!!!:" << output.size() << std::endl;
+
+	std::cout << std::endl;
+	cudaFree(debug);
 	cudaFree(paths);
 	cudaFree(res);
 }
