@@ -367,6 +367,8 @@ void ClipperOffset::DoRound(const Path64& path, size_t j, size_t k, double angle
 	path_out.push_back(Point64(pt.x + offsetVec.x, pt.y + offsetVec.y));
 #endif
 	int steps = static_cast<int>(std::ceil(steps_per_rad_ * std::abs(angle))); // #448, #456
+
+	// std::cout << "(step" << j <<"," << steps << ")" ;
 	for (int i = 1; i < steps; ++i) // ie 1 less than steps
 	{
 		offsetVec = PointD(offsetVec.x * step_cos_ - step_sin_ * offsetVec.y,
@@ -387,7 +389,7 @@ void ClipperOffset::OffsetPoint(Group& group, const Path64& path, size_t j, size
 	// A == PI: edges 'spike'
 	// sin(A) < 0: right turning
 	// cos(A) < 0: change in angle is more than 90 degree
-
+	// std::cout <<"step" << j << ", " << k << std::endl;
 	if (path[j] == path[k]) { k = j; return; }
 
 	double sin_a = CrossProduct(norms[j], norms[k]);
@@ -396,6 +398,7 @@ void ClipperOffset::OffsetPoint(Group& group, const Path64& path, size_t j, size
 	else if (sin_a < -1.0) sin_a = -1.0;
 
 	if (deltaCallback64_) {
+		std::cout << "Called Detlagroup!!!!!" << std::endl;
 		group_delta_ = deltaCallback64_(path, norms, j, k);
 		if (group.is_reversed) group_delta_ = -group_delta_;
 	}
@@ -745,11 +748,16 @@ void ClipperOffset::ExecuteInternal_CUDA(double delta)
 	}
 }
 
-void ClipperOffset::Execute_CUDA(double delta, Paths64& paths)
+void ClipperOffset::Execute_CUDA(double delta, Paths64& paths , bool skipUnion)
 {
 	paths.clear();
 
 	ExecuteInternal_CUDA(delta);
+
+	if(skipUnion) {
+		paths = solution;
+		return;
+	}
 	if (!solution.size()) return;
 
 	bool paths_reversed = CheckReverseOrientation();
@@ -768,13 +776,16 @@ void ClipperOffset::Execute_CUDA(double delta, Paths64& paths)
 		c.Execute(ClipType::Union, FillRule::Positive, paths);
 }
 
-void ClipperOffset::Execute(double delta, Paths64& paths)
+void ClipperOffset::Execute(double delta, Paths64& paths, bool skipUnion)
 {
 	paths.clear();
 
 	ExecuteInternal(delta);
 	if (!solution.size()) return;
-
+	if (skipUnion) {
+		paths = solution; // TEST CODE
+		return;
+	}
 	bool paths_reversed = CheckReverseOrientation();
 	//clean up self-intersections ...
 	Clipper64 c;

@@ -98,8 +98,8 @@ public:
 	void AddPaths(const Paths64& paths, JoinType jt_, EndType et_);
 	void Clear() { groups_.clear(); norms.clear(); };
 	
-	void Execute(double delta, Paths64& paths);
-	void Execute_CUDA(double delta, Paths64& paths);
+	void Execute(double delta, Paths64& paths, bool skipUnion = false);
+	void Execute_CUDA(double delta, Paths64& paths, bool skipUnion = false);
 	void Execute(double delta, PolyTree64& polytree);
 	void Execute(DeltaCallback64 delta_cb, Paths64& paths);
 
