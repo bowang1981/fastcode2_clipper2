@@ -10,6 +10,7 @@
 #include <cmath>
 #include "clipper2/clipper.h"
 #include "clipper2/clipper.offset.h"
+#include "clipper2/clipper.offset.cuh"
 
 namespace Clipper2Lib {
 
@@ -610,7 +611,56 @@ void ClipperOffset::DoGroupOffset(Group& group)
 	}
 }
 
+void ClipperOffset::DoGroupOffset_CUDA(Group& group)
+{
+	if (group.end_type == EndType::Polygon)
+	{
+		// a straight path (2 points) can now also be 'polygon' offset
+		// where the ends will be treated as (180 deg.) joins
+		if (group.lowest_path_idx < 0) delta_ = std::abs(delta_);
+		group_delta_ = (group.is_reversed) ? -delta_ : delta_;
+	}
+	else
+		group_delta_ = std::abs(delta_);// *0.5;
 
+	double abs_delta = std::fabs(group_delta_);
+	if (!ValidateBounds(group.bounds_list, abs_delta))
+	{
+		DoError(range_error_i);
+		error_code_ |= range_error_i;
+		return;
+	}
+
+	join_type_	= group.join_type;
+	end_type_ = group.end_type;
+
+	if (group.join_type == JoinType::Round || group.end_type == EndType::Round)
+	{
+		// calculate a sensible number of steps (for 360 deg for the given offset)
+		// arcTol - when arc_tolerance_ is undefined (0), the amount of
+		// curve imprecision that's allowed is based on the size of the
+		// offset (delta). Obviously very large offsets will almost always
+		// require much less precision. See also offset_triginometry2.svg
+		double arcTol = (arc_tolerance_ > floating_point_tolerance ?
+			std::min(abs_delta, arc_tolerance_) :
+			std::log10(2 + abs_delta) * default_arc_tolerance);
+
+		double steps_per_360 = std::min(PI / std::acos(1 - arcTol / abs_delta), abs_delta * PI);
+		step_sin_ = std::sin(2 * PI / steps_per_360);
+		step_cos_ = std::cos(2 * PI / steps_per_360);
+		if (group_delta_ < 0.0) step_sin_ = -step_sin_;
+		steps_per_rad_ = steps_per_360 / (2 * PI);
+	}
+// CUDA only support EndType::Polygon
+	OffsetParam param;
+	param.join_type_ = static_cast<int>(join_type_);
+	param.floating_point_tolerance = floating_point_tolerance;
+	param.step_cos_ = step_cos_;
+	param.step_sin_ = step_sin_;
+	param.steps_per_rad_ = steps_per_rad_;
+	param.temp_lim_ = temp_lim_;
+	offset_execute(group.paths_in, group_delta_, solution, param );
+}
 size_t ClipperOffset::CalcSolutionCapacity()
 {
 	size_t result = 0;
@@ -661,6 +711,61 @@ void ClipperOffset::ExecuteInternal(double delta)
 		if (!error_code_) continue; // all OK
 		solution.clear();
 	}
+}
+
+
+void ClipperOffset::ExecuteInternal_CUDA(double delta)
+{
+	error_code_ = 0;
+	solution.clear();
+	if (groups_.size() == 0) return;
+	// solution.reserve(CalcSolutionCapacity());
+
+	if (std::abs(delta) < 0.5) // ie: offset is insignificant
+	{
+		Paths64::size_type sol_size = 0;
+		for (const Group& group : groups_) sol_size += group.paths_in.size();
+		solution.reserve(sol_size);
+		for (const Group& group : groups_)
+			copy(group.paths_in.begin(), group.paths_in.end(), back_inserter(solution));
+		return;
+	}
+
+	temp_lim_ = (miter_limit_ <= 1) ?
+		2.0 :
+		2.0 / (miter_limit_ * miter_limit_);
+
+	delta_ = delta;
+	std::vector<Group>::iterator git;
+	for (git = groups_.begin(); git != groups_.end(); ++git)
+	{
+		DoGroupOffset_CUDA(*git);
+		if (!error_code_) continue; // all OK
+		solution.clear();
+	}
+}
+
+void ClipperOffset::Execute_CUDA(double delta, Paths64& paths)
+{
+	paths.clear();
+
+	ExecuteInternal_CUDA(delta);
+	if (!solution.size()) return;
+
+	bool paths_reversed = CheckReverseOrientation();
+	//clean up self-intersections ...
+	Clipper64 c;
+	c.PreserveCollinear(false);
+	//the solution should retain the orientation of the input
+	c.ReverseSolution(reverse_solution_ != paths_reversed);
+#ifdef USINGZ
+	if (zCallback64_) { c.SetZCallback(zCallback64_); }
+#endif
+	c.AddSubject(solution);
+	if (paths_reversed)
+		c.Execute(ClipType::Union, FillRule::Negative, paths);
+	else
+		c.Execute(ClipType::Union, FillRule::Positive, paths);
 }
 
 void ClipperOffset::Execute(double delta, Paths64& paths)

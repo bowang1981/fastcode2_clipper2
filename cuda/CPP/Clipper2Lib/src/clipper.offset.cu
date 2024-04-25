@@ -6,29 +6,7 @@ namespace Clipper2Lib {
 
 
 
-__device__ void DoBevel(cuPath64& input, double group_delta_,
-		size_t j, size_t k, cuPath64& output, cuPathD& norms)
-{
-	int64_t x1, y1, x2, y2;
-	if (j == k)
-	{
-		double abs_delta = abs(group_delta_);
-		x1 = input.points[j].x - abs_delta * norms.points[j].x;
-		y1 = input.points[j].y - abs_delta * norms.points[j].y;
 
-		x2 = input.points[j].x + abs_delta * norms.points[j].x;
-		y2 = input.points[j].y + abs_delta * norms.points[j].y;
-	}
-	else
-	{
-		x1 = input.points[j].x + group_delta_ * norms.points[k].x;
-		y1 = input.points[j].y + group_delta_ * norms.points[k].y;
-		x2 = input.points[j].x + group_delta_ * norms.points[j].x;
-		y2 = input.points[j].y + group_delta_ * norms.points[j].y;
-	}
-	output.push_back(d2i(x1), d2i(y1));
-	output.push_back(d2i(x2), d2i(y2));
-}
 
 __device__ bool AlmostZero(double value, double epsilon = 0.001)
 {
@@ -103,19 +81,65 @@ __device__ cuPointD GetPerpendicD(const cuPoint64& pt, const cuPointD& norm, dou
 	return cuPointD(pt.x + norm.x * delta, pt.y + norm.y * delta);
 }
 
-__device__ void DoSquare(cuPath64& path, size_t j, size_t k,
-		cuPathD& norms, cuPath64& path_out, double group_delta_)
+__device__ cuPointD GetUnitNormal(const cuPoint64& pt1, const cuPoint64& pt2)
 {
+	double dx, dy, inverse_hypot;
+	if (pt1.x == pt2.x && pt1.y == pt2.y) return cuPointD(0.0, 0.0);
+	dx = static_cast<double>(pt2.x - pt1.x);
+	dy = static_cast<double>(pt2.y - pt1.y);
+	inverse_hypot = 1.0 / hypot(dx, dy);
+	dx *= inverse_hypot;
+	dy *= inverse_hypot;
+	return cuPointD(dy, -dx);
+}
 
+__device__ cuPointD GetNorm(const cuPath64& path, int i)
+{
+	int sz = path.size;
+	int next = (i + 1) % sz;
+	return GetUnitNormal(path.points[i], path.points[next]);
+}
+
+__device__ void DoBevel(cuPath64& input, double group_delta_,
+		size_t j, size_t k, cuPath64& output)
+{
+	int64_t x1, y1, x2, y2;
+	cuPointD normj = GetNorm(input, j);
+	cuPointD normk = GetNorm(input, k);
+	if (j == k)
+	{
+		double abs_delta = abs(group_delta_);
+		x1 = input.points[j].x - abs_delta * normj.x;
+		y1 = input.points[j].y - abs_delta * normj.y;
+
+		x2 = input.points[j].x + abs_delta * normj.x;
+		y2 = input.points[j].y + abs_delta * normj.y;
+	}
+	else
+	{
+		x1 = input.points[j].x + group_delta_ * normk.x;
+		y1 = input.points[j].y + group_delta_ * normk.y;
+		x2 = input.points[j].x + group_delta_ * normj.x;
+		y2 = input.points[j].y + group_delta_ * normj.y;
+	}
+	output.push_back(d2i(x1), d2i(y1));
+	output.push_back(d2i(x2), d2i(y2));
+}
+
+__device__ void DoSquare(cuPath64& path, size_t j, size_t k,
+		 cuPath64& path_out, double group_delta_)
+{
+	cuPointD normj = GetNorm(path, j);
+	cuPointD normk = GetNorm(path, k);
 	cuPointD vec(0, 0);
 	if (j == k) {
-		vec.x = norms.points[j].y;
-		vec.y = -norms.points[j].x;
+		vec.x = normj.y;
+		vec.y = -normj.x;
 	}
 	else {
 		vec = GetAvgUnitVector(
-			cuPointD(-norms.points[k].y, norms.points[k].x),
-			cuPointD(norms.points[j].y, -norms.points[j].x));
+			cuPointD(-normk.y, normk.x),
+			cuPointD(normj.y, -normj.x));
 	}
 
 	double abs_delta = abs(group_delta_);
@@ -129,7 +153,7 @@ __device__ void DoSquare(cuPath64& path, size_t j, size_t k,
 	cuPointD pt1 = TranslatePoint(ptQ, group_delta_ * vec.y, group_delta_ * -vec.x);
 	cuPointD pt2 = TranslatePoint(ptQ, group_delta_ * -vec.y, group_delta_ * vec.x);
 	// get 2 vertices along one edge offset
-	cuPointD pt3 = GetPerpendicD(path.points[k], norms.points[k], group_delta_);
+	cuPointD pt3 = GetPerpendicD(path.points[k], normk, group_delta_);
 	if (j == k)
 	{
 		cuPointD pt4 = cuPointD(pt3.x + vec.x * group_delta_, pt3.y + vec.y * group_delta_);
@@ -142,7 +166,7 @@ __device__ void DoSquare(cuPath64& path, size_t j, size_t k,
 	}
 	else
 	{
-		cuPointD pt4 = GetPerpendicD(path.points[j], norms.points[k], group_delta_);
+		cuPointD pt4 = GetPerpendicD(path.points[j], normk, group_delta_);
 		cuPointD pt = IntersectPoint(pt1, pt2, pt3, pt4);
 
 		path_out.push_back(d2i(pt.x), d2i(pt.y));
@@ -153,18 +177,19 @@ __device__ void DoSquare(cuPath64& path, size_t j, size_t k,
 }
 
 __device__ void DoMiter(const cuPath64& path, size_t j, size_t k, double cos_a,
-		cuPath64& path_out, cuPathD& norms, double group_delta_)
+		cuPath64& path_out,  double group_delta_)
 {
+	cuPointD normj = GetNorm(path, j);
+	cuPointD normk = GetNorm(path, k);
 	double q = group_delta_ / (cos_a + 1);
 
-	path_out.push_back(d2i(path.points[j].x + (norms.points[k].x + norms.points[j].x) * q),
-		d2i(path.points[j].y + (norms.points[k].y + norms.points[j].y) * q));
+	path_out.push_back(d2i(path.points[j].x + (normk.x + normj.x) * q),
+		d2i(path.points[j].y + (normk.y + normj.y) * q));
 }
 
 __device__ void DoRound(cuPath64& path, size_t j, size_t k,
 						double angle, double group_delta_, cuPath64& path_out,
-						cuPathD& norms, double steps_per_rad_, double step_sin_,
-						double step_cos_)
+						OffsetParam* param)
 {
 	/*if (deltaCallback64_) {
 		// Bo: this code should not be needed, as we only support the simple version
@@ -180,9 +205,10 @@ __device__ void DoRound(cuPath64& path, size_t j, size_t k,
 		if (group_delta_ < 0.0) step_sin_ = -step_sin_;
 		steps_per_rad_ = steps_per_360 / (2 * PI);
 	}*/
-
+	cuPointD normj = GetNorm(path, j);
+	cuPointD normk = GetNorm(path, k);
 	cuPoint64 pt = path.points[j];
-	cuPointD offsetVec = cuPointD(norms.points[k].x * group_delta_, norms.points[k].y * group_delta_);
+	cuPointD offsetVec = cuPointD(normk.x * group_delta_, normk.y * group_delta_);
 
 	if (j == k)  {
 		offsetVec.x = -offsetVec.x;
@@ -191,24 +217,22 @@ __device__ void DoRound(cuPath64& path, size_t j, size_t k,
 	}
 
 	path_out.push_back(d2i(pt.x + offsetVec.x), d2i(pt.y + offsetVec.y));
-	int steps = d2i(ceil(steps_per_rad_ * abs(angle))); // #448, #456
+	int steps = d2i(ceil(param->steps_per_rad_ * abs(angle))); // #448, #456
 	for (int i = 1; i < steps; ++i) // ie 1 less than steps
 	{
-		offsetVec = cuPointD(offsetVec.x * step_cos_ - step_sin_ * offsetVec.y,
-			offsetVec.x * step_sin_ + offsetVec.y * step_cos_);
+		offsetVec = cuPointD(offsetVec.x * param->step_cos_ - param->step_sin_ * offsetVec.y,
+			offsetVec.x * param->step_sin_ + offsetVec.y * param->step_cos_);
 
 		path_out.push_back(d2i(pt.x + offsetVec.x), d2i(pt.y + offsetVec.y));
 	}
-	cuPoint64 p1 = GetPerpendic(path.points[j], norms.points[j], group_delta_);
+	cuPoint64 p1 = GetPerpendic(path.points[j], normj, group_delta_);
 	path_out.push_back(p1.x, p1.y);
 
 }
 
 __device__ void OffsetPoint( cuPath64& path, size_t j, size_t k,
-		cuPathD& norms, double group_delta_, cuPath64& path_out,
-		double steps_per_rad_, double step_sin_,
-		double step_cos_, int join_type_,
-		double floating_point_tolerance, double temp_lim_)
+		double group_delta_, cuPath64& path_out,
+		OffsetParam* param)
 {
 	//TODO: Bo to finish
 	// Let A = change in angle where edges join
@@ -219,9 +243,10 @@ __device__ void OffsetPoint( cuPath64& path, size_t j, size_t k,
 
 	if (path.points[j].x == path.points[k].x &&
 			path.points[j].y == path.points[k].y) { k = j; return; }
-
-	double sin_a = CrossProduct(norms.points[j], norms.points[k]);
-	double cos_a = DotProduct(norms.points[j], norms.points[k]);
+	cuPointD normj = GetNorm(path, j);
+	cuPointD normk = GetNorm(path, k);
+	double sin_a = CrossProduct(normj, normk);
+	double cos_a = DotProduct(normj, normk);
 	if (sin_a > 1.0) sin_a = 1.0;
 	else if (sin_a < -1.0) sin_a = -1.0;
 
@@ -229,7 +254,7 @@ __device__ void OffsetPoint( cuPath64& path, size_t j, size_t k,
 		group_delta_ = deltaCallback64_(path, norms, j, k);
 		if (group.is_reversed) group_delta_ = -group_delta_;
 	}*/
-	if (fabs(group_delta_) <= floating_point_tolerance)
+	if (fabs(group_delta_) <= param->floating_point_tolerance)
 	{
 		path_out.append(path.points[j]);
 		return;
@@ -238,67 +263,88 @@ __device__ void OffsetPoint( cuPath64& path, size_t j, size_t k,
 	if (cos_a > -0.99 && (sin_a * group_delta_ < 0)) // test for concavity first (#593)
 	{
 		// is concave
-		path_out.append(GetPerpendic(path.points[j], norms.points[k], group_delta_));
+		path_out.append(GetPerpendic(path.points[j], normk, group_delta_));
 		// this extra point is the only (simple) way to ensure that
 	  // path reversals are fully cleaned with the trailing clipper
 		path_out.append(path.points[j]); // (#405)
-		path_out.append(GetPerpendic(path.points[j], norms.points[j], group_delta_));
+		path_out.append(GetPerpendic(path.points[j], normj, group_delta_));
 	}
-	else if (cos_a > 0.999 && join_type_ != 2) // Clipper2Lib::JoinType::Round)
+	else if (cos_a > 0.999 && param->join_type_ != 2) // Clipper2Lib::JoinType::Round)
 	{
 		// enum class JoinType { Square, Bevel, Round, Miter };
 		// almost straight - less than 2.5 degree (#424, #482, #526 & #724)
 		//DoMiter(const cuPath64& path, size_t j, size_t k, double cos_a,
 			//	cuPath64& path_out, cuPathD& norms, double group_delta_)
-		DoMiter(path, j, k, cos_a, path_out, norms, group_delta_);
+		DoMiter(path, j, k, cos_a, path_out, group_delta_);
 	}
-	else if (join_type_ == 3) // Clipper2Lib::JoinType::Miter)
+	else if (param->join_type_ == 3) // Clipper2Lib::JoinType::Miter)
 	{
 		// miter unless the angle is sufficiently acute to exceed ML
-		if (cos_a > temp_lim_ - 1) DoMiter(path, j, k, cos_a,  path_out, norms, group_delta_);
-		else DoSquare(path, j, k, norms, path_out, group_delta_);
+		if (cos_a > param->temp_lim_ - 1) DoMiter(path, j, k, cos_a,  path_out, group_delta_);
+		else DoSquare(path, j, k, path_out, group_delta_);
 	}
-	else if (join_type_ == 2) // Clipper2Lib::JoinType::Round)
-		DoRound(path, j, k, std::atan2(sin_a, cos_a), group_delta_, path_out,
-				norms,  steps_per_rad_,  step_sin_,
-				 step_cos_);
-	else if ( join_type_ == 1) // Clipper2Lib::JoinType::Bevel)
-		DoBevel(path, group_delta_,j, k,
-				path_out, norms);
+	else if (param->join_type_ == 2) // Clipper2Lib::JoinType::Round)
+		DoRound(path, j, k, std::atan2(sin_a, cos_a), group_delta_, path_out, param);
+	else if ( param->join_type_ == 1) // Clipper2Lib::JoinType::Bevel)
+		DoBevel(path, group_delta_,j, k, path_out);
 	else
-		DoSquare(path, j, k, norms, path_out, group_delta_);
+		DoSquare(path, j, k, path_out, group_delta_);
 
 }
 
 __device__ void OffsetPolygon(cuPath64& path, cuPath64& path_out, double group_delta,
-		cuPathD& norms,
-		double steps_per_rad_, double step_sin_,
-		double step_cos_, int join_type_,
-		double floating_point_tolerance, double temp_lim_)
+		 OffsetParam* param)
 {
 	// TODO: Bo to finish
 	for (int j = 0, k = path.size -1; j < path.size; k = j, ++j) {
-		OffsetPoint(path, j, k, norms, group_delta, path_out, steps_per_rad_, step_sin_,
-				 step_cos_, join_type_,
-				 floating_point_tolerance,  temp_lim_ );
+		OffsetPoint(path, j, k, group_delta, path_out, param);
 	}
 
 }
 
 
-__global__ void offset_kernel(cuPaths64* input, cuPaths64* output, double group_delta)
+__global__ void offset_kernel(cuPaths64* input, cuPaths64* output,
+							double group_delta, OffsetParam* param)
 {
-	// TODO: Bo to finish
 	// call offsetPolygon here
+	int total = gridDim.x * blockDim.x;
+	int batch = input->size / total + 1;
+	int id = blockIdx.x * blockDim.x + threadIdx.x;
+	for (int i = id * batch; i < (id+1) * batch && i < input->size; ++i) {
+		OffsetPolygon(input->cupaths[i], output->cupaths[i], group_delta, param);
+	}
+
 }
 
-void offset_execute(const Paths64& input, const Rect64& rect, Paths64& output)
+
+void offset_execute(const Paths64& input, double delta, Paths64& output,  const OffsetParam& param)
 {
 	//TODO: Bo to finish
 	// once this is done, we can change the Exectue_Internal to call this function
 	// call the kernel offset_kernel here
 	// We only support offsetPolygon
 
+	cuPaths64* paths;
+	cudaMallocManaged(&paths, sizeof(cuPaths64));
+	paths->init(input);
+
+	cuPaths64* res;
+	cudaMallocManaged(&res, sizeof(cuPaths64));
+	res->initShapeOnly(input, 4);
+	OffsetParam* cuparam;
+	cudaMallocManaged(&cuparam, sizeof(OffsetParam));
+	cuparam->floating_point_tolerance = param.floating_point_tolerance;
+	cuparam->join_type_ = param.join_type_;
+	cuparam->step_cos_ = param.step_cos_;
+	cuparam->step_sin_ = param.step_sin_;
+	cuparam->steps_per_rad_ = param.steps_per_rad_;
+	cuparam->temp_lim_ = param.temp_lim_;
+	std::cout << "Luanch CUDA" << std::endl;
+	offset_kernel<<<1, 128>>>(paths, res, delta, cuparam);
+	cudaDeviceSynchronize();
+	output = res->toPaths64();
+	cudaFree(paths);
+	cudaFree(res);
 }
 
 } // end of namespace
