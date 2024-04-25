@@ -33,17 +33,63 @@ namespace RectClippingTest {
             Rect64 rect = Rect64(margin, margin, width - margin, height - margin);
             clp.push_back(rect.AsPath());
             sub = TestGenerator::CreateRectangles(cnt);
-
-            rectclip_execute(sub, rect, sol );
-            //sol = RectClip(rect, sub);
+            Timer t1;
+            sol = RectClip(rect, sub);
+            std::cout << "OpenMP RectClipping: " << t1.elapsed_str() << std::endl;
+            Timer t;
+            sol = RectClip_CUDA(rect, sub);
+            std::cout << "Cuda RectClipping: " << t.elapsed_str() << std::endl;
 
             FillRule fr = FillRule::EvenOdd;
             SvgWriter svg;
             svg.AddPaths(sub, false, fr, 0x100066FF, 0x400066FF, 1, false);
             svg.AddPaths(clp, false, fr, 0x10FFAA00, 0xFFFF0000, 1, false);
             svg.AddPaths(sol, false, fr, 0x8066FF66, 0xFF006600, 1, false);
-            svg.SaveToFile("rectclip2.svg", 800, 600, 0);
-            System("rectclip2.svg");
+            svg.SaveToFile("rectclip_cuda.svg", 800, 600, 0);
+            // System("rectclip2.svg");
+        }
+
+        void DoRectClippingTest_1K(){
+            Paths64 sub, clp, sol, store;
+            Rect64 rect = Rect64(margin, margin, width - margin, height - margin);
+            clp.push_back(rect.AsPath());
+            sub = TestGenerator::CreateTestCase_1K(); //CreateTestCase_1M has error
+            Timer t1;
+            sol = RectClip(rect, sub);
+            std::cout << "OpenMP RectClipping: " << t1.elapsed_str() << std::endl;
+            Timer t;
+            sol = RectClip_CUDA(rect, sub);
+            std::cout << "Cuda RectClipping: " << t.elapsed_str() << std::endl;
+
+            FillRule fr = FillRule::EvenOdd;
+            SvgWriter svg;
+            svg.AddPaths(sub, false, fr, 0x100066FF, 0x400066FF, 1, false);
+            svg.AddPaths(clp, false, fr, 0x10FFAA00, 0xFFFF0000, 1, false);
+            svg.AddPaths(sol, false, fr, 0x8066FF66, 0xFF006600, 1, false);
+            svg.SaveToFile("rectclip_cuda.svg", 800, 600, 0);
+            // System("rectclip2.svg");
+        }
+        
+
+        void DoRectClippingTest_1M(){
+            Paths64 sub, clp, sol, store;
+            Rect64 rect = Rect64(margin, margin, width - margin, height - margin);
+            clp.push_back(rect.AsPath());
+            sub = TestGenerator::CreateTestCase_1M(); //CreateTestCase_1M has error
+            Timer t1;
+            sol = RectClip(rect, sub);
+            std::cout << "OpenMP RectClipping: " << t1.elapsed_str() << std::endl;
+            Timer t;
+            sol = RectClip_CUDA(rect, sub);
+            std::cout << "Cuda RectClipping: " << t.elapsed_str() << std::endl;
+
+            FillRule fr = FillRule::EvenOdd;
+            SvgWriter svg;
+            svg.AddPaths(sub, false, fr, 0x100066FF, 0x400066FF, 1, false);
+            svg.AddPaths(clp, false, fr, 0x10FFAA00, 0xFFFF0000, 1, false);
+            svg.AddPaths(sol, false, fr, 0x8066FF66, 0xFF006600, 1, false);
+            svg.SaveToFile("rectclip_cuda.svg", 800, 600, 0);
+            // System("rectclip2.svg");
         }
 
 

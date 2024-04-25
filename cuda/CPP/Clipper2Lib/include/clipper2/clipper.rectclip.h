@@ -74,6 +74,7 @@ namespace Clipper2Lib
       rect_(rect),
       rect_as_path_(rect.AsPath()),
       rect_mp_(rect.MidPoint()) {}
+    Paths64 Execute_CUDA(const Paths64& paths);
     Paths64 Execute(const Paths64& paths);
   };
 

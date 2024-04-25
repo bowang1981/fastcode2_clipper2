@@ -18,7 +18,7 @@ namespace Clipper2Lib {
 
     // ============
     
-    void rectclip_execute(const Paths64& input, const Rect64& rect, Paths64& output);
+    void rectclip_execute(const Paths64& input, const Rect64& rect, Paths64& output, Paths64& overlaps);
 
 }
 

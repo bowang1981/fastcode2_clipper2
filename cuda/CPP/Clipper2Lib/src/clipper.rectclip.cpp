@@ -11,6 +11,7 @@
 #include <omp.h>
 #include "clipper2/clipper.h"
 #include "clipper2/clipper.rectclip.h"
+#include "clipper2/clipper.rectclip.cuh"
 
 namespace Clipper2Lib {
 
@@ -946,7 +947,7 @@ namespace Clipper2Lib {
     if (rect_.IsEmpty()) return result;
     #pragma omp parallel for num_threads(32)
     for (const Path64& path : paths)
-    {
+    {      
       if (path.size() < 3) continue;
 
       Rect64 path_bounds = GetBounds(path);
@@ -959,8 +960,8 @@ namespace Clipper2Lib {
       else if (rect_.Contains(path_bounds))
       {
         // the path must be completely inside rect_
-        // #pragma omp critical
-        // result.push_back(path);
+        #pragma omp critical
+        result.push_back(path);
         continue; // this thread is just ending/finishied
       }
 
@@ -988,13 +989,63 @@ namespace Clipper2Lib {
       // if we don't need to display it, or we have function to display the partial at the same time, we can remove the critical section
       // which means this not necessary in time calculation.
 
-      // #pragma omp critical
-      // {
-      //     for (Path64 tmp : tmpResults)
-      //     {
-      //         result.emplace_back(tmp);
-      //     }
-      // }
+      #pragma omp critical
+      {
+          for (Path64 tmp : tmpResults)
+          {
+              result.emplace_back(tmp);
+          }
+      }
+
+    }
+    return result;
+  }
+
+  Paths64 RectClip64::Execute_CUDA(const Paths64& paths)
+  {
+    Paths64 result, overlaps;
+    if (rect_.IsEmpty()) return result;
+
+    // use cuda to filter out overlapping rectangles
+    rectclip_execute(paths, rect_, result, overlaps);
+    
+    std::cout << "==overlaps length: " << overlaps.size() << std::endl;
+    #pragma omp parallel for num_threads(32)
+    for (const Path64& path : overlaps)
+    {
+      Rect64 path_bounds = GetBounds(path);
+      OutPt2List partial_results = OutPt2List();
+      std::vector<Location> start_locs = std::vector<Location>();
+
+      OutPt2List edges[8];
+      std::deque<OutPt2> op_container = std::deque<OutPt2>();
+      ExecuteInternal(path, path_bounds, start_locs, partial_results, op_container, edges);
+
+      CheckEdges(partial_results, edges);
+      for (int i = 0; i < 4; ++i)
+        TidyEdges(i, edges[i * 2], edges[i * 2 + 1], partial_results);
+
+      Paths64 tmpResults;
+      for (OutPt2*& op : partial_results)
+      {
+          Path64 tmp = GetPath(op);
+          if (!tmp.empty())
+          {
+              tmpResults.emplace_back(tmp);
+          }
+      }      
+  
+      // The algorithm is already implemented, the critical section below is only for the display process that need only one final result
+      // if we don't need to display it, or we have function to display the partial at the same time, we can remove the critical section
+      // which means this not necessary in time calculation.
+
+      #pragma omp critical
+      {
+          for (Path64 tmp : tmpResults)
+          {
+              result.emplace_back(tmp);
+          }
+      }
 
     }
     return result;
