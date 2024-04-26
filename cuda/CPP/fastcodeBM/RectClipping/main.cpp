@@ -22,10 +22,10 @@ int main(int argc, char* argv[])
 
     // UnionTest::DoSquares();
     // RectClippingTest::DoRectanglesTest(1000);
-    //RectClippingTest::DoRectClippingTest_1K();
-    // RectClippingTest::DoRectClippingTest_1M();//error
+    // RectClippingTest::DoRectClippingTest_1K();
+    RectClippingTest::DoRectClippingTest_1M();
     // RectClippingTest::DoPolygonTest(500);
     // OffsettingTest::doOffsetTest1();
-    OffsettingTest::doOffsetTest();
+    // OffsettingTest::doOffsetTest();
 
 }

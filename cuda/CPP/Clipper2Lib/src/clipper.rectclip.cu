@@ -4,6 +4,7 @@
 #include "clipper2/clipper.rectclip.cuh"
 #include <iostream>
 #include <vector>
+#include "../../Utils/Timer.h"
 __global__ void test_print() {
 	// print("Just test the cmake usage on CUDA!");
 }
@@ -325,8 +326,12 @@ void rectclip_execute(const Paths64& input, const Rect64& rect, Paths64& output,
 	r1->left = rect.left;
 	r1->right = rect.right;
 
+	Timer t;
+	std::cout << "Luanch CUDA:"  << std::endl;
 	filter<<<100, 128>>>(paths, r1, filterarr);
 	cudaDeviceSynchronize();
+  std::cout << "CUDA: Kernel Run time: "
+              << t.elapsed_str() << std::endl;
 
 	for (int i = 0; i < input.size(); ++i) {
 		if (filterarr[i] == 1) { // inside, just add into output
@@ -335,6 +340,10 @@ void rectclip_execute(const Paths64& input, const Rect64& rect, Paths64& output,
 			overlaps.push_back(input[i]);
 		}
 	}
+
+  cudaFree(r1);
+	cudaFree(filterarr);
+	cudaFree(paths);
 
   // RectClip_OpenMP(overlaps, rect, output); //TODO：move this out of cu file.
 
@@ -362,9 +371,7 @@ void rectclip_execute(const Paths64& input, const Rect64& rect, Paths64& output,
   executeClip<<<10, 128>>>(inputClip, r1 ,outputClip ...);
 
 */
-	cudaFree(r1);
-	cudaFree(filterarr);
-	cudaFree(paths);
+
 }
 
 
