@@ -14,6 +14,7 @@ int main(int argc, char* argv[])
 {
     srand((unsigned)time(0));
     // AreaCalcTest::DoTestAreaCalc();
+    AreaCalcTest::DoTestAreaCalc3();
     // Clipper2Lib::wrap_test_print();
 
 
@@ -26,6 +27,6 @@ int main(int argc, char* argv[])
     // RectClippingTest::DoRectClippingTest_1M();//error
     // RectClippingTest::DoPolygonTest(500);
     // OffsettingTest::doOffsetTest1();
-    OffsettingTest::doOffsetTest();
+    // OffsettingTest::doOffsetTest();
 
 }

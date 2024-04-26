@@ -66,27 +66,41 @@ float area_single(const Path64& path) {
 
 }
 
-__global__ void area_paths_kernel(cuPaths64* path, float* res)
+
+__global__ void area_paths_kernel(cuPaths64* input, float* res)
 {
 	// TODO David, please add.
 
-    cuPath64* current_path = path->cupaths;
-    size_t cnt = current_path->size;
-    if (cnt < 3) return; // Skip paths with less than 3 points
-    float a = 0.0;
-    
+    int num_threads = gridDim.x * blockDim.x;
 
-    int total_threads = gridDim.x * blockDim.x;
+    int input_size = input->size;
+	int batch = input_size / num_threads;
+	int id = blockIdx.x * blockDim.x + threadIdx.x;
 
-    int id = blockIdx.x * blockDim.x + threadIdx.x;
+    int start = id * batch;
+    int end = start + batch;
 
-    int patch_size = cnt / total_threads;
-    int start = id*patch_size;
-    int end = start + cnt;
-    size_t lastIdx = end-1;
-    for(int i = start;  i < cnt && i<end; ++i){
-        int j = i == start ? lastIdx: i-1;
-        a += (current_path->points[i].x + current_path->points[j].x) * (current_path->points[i].y - current_path->points[j].y) * 0.5;
+    double a = 0.0;
+    for(int i = start; i<end; ++i){
+        cuPath64* path = &input->cupaths[i];
+        // area_paths_kernel_single(path, res);
+        size_t cnt = path->size;
+        if(cnt<3){
+            continue;
+        }
+        float a1 = 0.0;
+        int last_idx = cnt - 1;
+        float m1 =path->points[0].x + path->points[last_idx].x;
+        float m2 = path->points[0].y - path->points[last_idx].y;
+        a1 += (m1 * m2);
+        for(int i = 1; i<cnt; ++i){
+            int j = i-1;
+            m1 =path->points[i].x + path->points[j].x;
+            m2 = path->points[i].y - path->points[j].y;
+            a1 += (m1 * m2);
+        }
+        a1 /= 2;
+        a += a1;
     }
     atomicAdd(res, a);
 }
@@ -104,50 +118,10 @@ float area_paths(const Paths64& paths)
     area_paths_kernel<<<1, 10>>>(cu_paths, res);
     cudaDeviceSynchronize();
 
-    float total_area = *res; // Assuming the area needs to be halved
+    float total_area = *res;
     cudaFree(res);
     cudaFree(cu_paths);
     return total_area;
-	// return 0;
 }
 
 }
-
-
-/*
-
-    inline double Area_OpenMP_With_Clipper2_Area(const Paths64& paths)
-    {
-        double totalSum = 0.0;
-        #pragma omp parallel for reduction(+:totalSum) 
-        for (const auto &p: paths) {
-            const auto localSum = Area(p);
-            totalSum+=localSum;
-        }
-        return totalSum;
-    }
-
-
-    // In this version, we implement our own area calculation function
-    inline double Area_OpenMP(const Paths64& paths)
-    {
-        double totalSum = 0.0;
-        #pragma omp parallel for reduction(+:totalSum) 
-        for (const auto &p: paths) {
-            double localSum = 0.0;
-            const auto pathSize = p.size();
-            if(pathSize<3){
-                continue;
-            }
-            const auto lastIdx = pathSize - 1;
-            for (size_t i = 0; i < pathSize; ++i) {
-                const auto& it1 = p[i];
-                const auto& it2 = p[i == 0 ? lastIdx : i - 1];
-                localSum += (it1.x + it2.x) * (it1.y - it2.y);
-            }
-            totalSum += localSum;
-        }
-        return totalSum/2;
-    }
-
-*/

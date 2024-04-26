@@ -53,7 +53,7 @@ namespace AreaCalcTest {
 
   
 
-        Paths64 subjects  = TestGenerator::MakeNoSelfIntesectPolygons(2, 5000000, 50000, 500); 
+        Paths64 subjects  = TestGenerator::MakeNoSelfIntesectPolygons(500000, 5000000, 50000, 500); 
         {
             std::cout << "\nStart DoTestAreaCalc3 (original implementation)" << std::endl;
             Timer t;
@@ -63,8 +63,6 @@ namespace AreaCalcTest {
             std::cout << "Area on a large number of polygons: " << t.elapsed_str() << "\n";
             std::cout << "Area: " << setprecision(10) << area << std::endl;
         }
-
-
         {
             std::cout << "\nStart area_paths (cuda implementation)" << std::endl;
             Timer t;
@@ -73,6 +71,7 @@ namespace AreaCalcTest {
             std::cout << "Area on a large number of polygons: " << t.elapsed_str() << "\n";
             std::cout << "Area: " << setprecision(10) << area << std::endl;
         }
+
 
     }
 }
