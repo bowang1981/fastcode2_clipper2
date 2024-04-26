@@ -47,4 +47,63 @@ namespace AreaCalcTest {
             cout << "Area: " << setprecision(10)<< area << std::endl;
         }*/
     }
+
+
+    void DoTestAreaCalc3() {
+
+  
+
+        Paths64 subjects  = TestGenerator::MakeNoSelfIntesectPolygons(2, 5000000, 50000, 500); 
+        {
+            std::cout << "\nStart DoTestAreaCalc3 (original implementation)" << std::endl;
+            Timer t;
+
+            const float area = Clipper2Lib::Area(subjects);
+            std::cout << "Calulating the sum of " << subjects.size() <<" polygons.\n";
+            std::cout << "Area on a large number of polygons: " << t.elapsed_str() << "\n";
+            std::cout << "Area: " << setprecision(10) << area << std::endl;
+        }
+
+
+        {
+            std::cout << "\nStart area_paths (cuda implementation)" << std::endl;
+            Timer t;
+            const float area =  Clipper2Lib::area_paths(subjects);
+            std::cout << "Calulating the sum of " << subjects.size() <<" polygons.\n";
+            std::cout << "Area on a large number of polygons: " << t.elapsed_str() << "\n";
+            std::cout << "Area: " << setprecision(10) << area << std::endl;
+        }
+
+    }
 }
+
+    // void DoTestAreaCalc3() {
+    //     auto subjects = TestGenerator::MakeNoSelfIntesectPolygons(10000, 500000, 50000, 2000);        
+    //     {
+    //         std::cout << "\nStart DoTestAreaCalc3 (original implementation)" << std::endl;
+    //         Timer t;
+
+    //         const double area = Area<int64_t>(subjects);
+    //         std::cout << "Calulating the sum of " << subjects.size() <<" polygons.\n";
+    //         std::cout << "Area on a large number of polygons: " << t.elapsed_str() << "\n";
+    //         std::cout << "Area: " << setprecision(10) << area << std::endl;
+    //     }
+    //     {
+    //         std::cout << "\nStart DoTestAreaCalc3 (partially openmp implementation)" << std::endl;
+    //         Timer t;
+
+    //         const double area = Area_OpenMP_With_Clipper2_Area(subjects);
+    //         std::cout << "Calulating the sum of " << subjects.size() <<" polygons.\n";
+    //         std::cout << "Area_OpenMP_With_Clipper2_Area on a large number of polygons: " << t.elapsed_str() << "\n";
+    //         std::cout << "Area: " << setprecision(10) << area << std::endl;
+    //     }
+    //     {
+    //         std::cout << "\nStart DoTestAreaCalc3 (openmp implementation)" << std::endl;
+    //         Timer t;
+
+    //         const double area = Area_OpenMP(subjects);
+    //         std::cout << "Calulating the sum of " << subjects.size() <<" polygons.\n";
+    //         std::cout << "Area_OpenMP on a large number of polygons: " << t.elapsed_str() << "\n";
+    //         std::cout << "Area: " << setprecision(10) << area << std::endl;
+    //     }
+    // }

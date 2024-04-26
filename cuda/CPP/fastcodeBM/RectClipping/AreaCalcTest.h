@@ -9,6 +9,7 @@
 namespace AreaCalcTest {
     void DoTestAreaCalc();
     void DoTestAreaCalc2();
+    void DoTestAreaCalc3();
 };
 
 
