@@ -31,11 +31,13 @@ struct cuRect64 {
 
 struct cuPath64 {
 	__host__ cuPath64();
-	__host__ void init(const Path64& path);
-	__host__ void init(int sz);
+	__host__ void init(const Path64& path, cuPoint64* start);
+	__host__ void init(int sz, cuPoint64* start);
 	__host__ ~cuPath64();
 	__host__ Path64 toPath64() const;
 	__host__ __device__ void push_back(int64_t x, int64_t y);
+	__host__ __device__ void append(cuPoint64 pt);
+	__device__ void appendD(cuPointD pt);
 //	__device__ __host__ cuRect64 getBoundary();
 	cuPoint64* points;
 	int size;
@@ -54,12 +56,14 @@ struct cuPathD {
 struct cuPaths64 {
 	__host__ cuPaths64();
 	__host__ void init(const Paths64& paths);
-	__host__ void init(int sz);
+	// __host__ void init(int sz);
 	__host__ void initShapeOnly(const Paths64& paths, int factor);
 	__host__ Paths64 toPaths64() const;
 	__host__ ~cuPaths64();
 	cuPath64* cupaths;
+	cuPoint64* allpoints;
 	int size;
+	int total_points;
 };
 
 __device__ void Append(cuPath64& input, int64_t x, int64_t y);
@@ -68,7 +72,7 @@ __host__ __device__ double CrossProduct(const cuPointD& pt1, const cuPointD& pt2
 __host__ __device__ double CrossProduct(const cuPoint64& pt1, const cuPoint64& pt2,
 		const cuPoint64& pt3);
 __host__ __device__ double DotProduct(const cuPointD& vec1, const cuPointD& vec2);
-
+__host__ __device__ double CrossProduct(const cuPointD& vec1, const cuPointD& vec2);
 }
 
 #endif

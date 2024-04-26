@@ -14,6 +14,7 @@ namespace Clipper2Lib {
 // In this version, we do the parallization in each polygon. We'll have another version on high level.
      double Area_OpenMP(const Paths64& paths, int thread_num);
 
+     void RectClip_OpenMP(const Paths64& paths, Rect64& rect, Paths64& result);
 
 }
 

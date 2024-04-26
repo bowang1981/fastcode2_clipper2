@@ -79,7 +79,9 @@ private:
 	void OffsetOpenPath(Group& group, const Path64& path);
 	void OffsetPoint(Group& group, const Path64& path, size_t j, size_t k);
 	void DoGroupOffset(Group &group);
+	void DoGroupOffset_CUDA(Group& group);
 	void ExecuteInternal(double delta);
+	void ExecuteInternal_CUDA(double delta);
 public:
 	explicit ClipperOffset(double miter_limit = 2.0,
 		double arc_tolerance = 0.0,
@@ -96,7 +98,8 @@ public:
 	void AddPaths(const Paths64& paths, JoinType jt_, EndType et_);
 	void Clear() { groups_.clear(); norms.clear(); };
 	
-	void Execute(double delta, Paths64& paths);
+	void Execute(double delta, Paths64& paths, bool skipUnion = false);
+	void Execute_CUDA(double delta, Paths64& paths, bool skipUnion = false);
 	void Execute(double delta, PolyTree64& polytree);
 	void Execute(DeltaCallback64 delta_cb, Paths64& paths);
 

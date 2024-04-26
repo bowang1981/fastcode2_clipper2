@@ -18,8 +18,17 @@
 namespace Clipper2Lib {
 
     // ============
+	struct OffsetParam {
+		double steps_per_rad_;
+		double step_sin_;
+		double step_cos_;
+		int join_type_;
+		double floating_point_tolerance;
+		double temp_lim_;
+	};
 
-    void offset_execute(const Paths64& input, const Rect64& rect, Paths64& output);
+    void offset_execute(const Paths64& input, double delta,
+    		Paths64& output, const OffsetParam& param);
 
 }
 

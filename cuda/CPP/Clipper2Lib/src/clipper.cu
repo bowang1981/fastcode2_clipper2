@@ -51,15 +51,18 @@ cuPath64::cuPath64()
 {
 }
 
-void cuPath64::init(const Path64& path)
+void cuPath64::init(const Path64& path, cuPoint64* start)
 {
 	size = path.size();
 	capacity = size;
+	/*{
     cudaError_t err = cudaMallocManaged(&points,size*sizeof(cuPoint64));
-    if (err != cudaSuccess)
-    {
-        std::cout << "Memory allocation failed"<<std::endl;
-    }
+		if (err != cudaSuccess)
+		{
+			std::cout << "Memory allocation failed"<<std::endl;
+		}
+	}*/
+	points = start;
 
     for(size_t i = 0;i<size;++i){
     	points[i].x = path[i].x;
@@ -71,6 +74,19 @@ void cuPath64::push_back(int64_t x, int64_t y)
 {
 	points[size].x = x;
 	points[size].y = y;
+	size = size + 1;
+}
+
+void cuPath64::append(cuPoint64 pt)
+{
+	points[size].x = pt.x;
+	points[size].y = pt.y;
+	size = size + 1;
+}
+void cuPath64::appendD(cuPointD pt)
+{
+	points[size].x = d2i(pt.x);
+	points[size].y = d2i(pt.y);
 	size = size + 1;
 }
 
@@ -95,22 +111,24 @@ Path64 cuPath64::toPath64() const
 	return p;
 }
 
-void cuPath64::init(int sz)
+void cuPath64::init(int sz, cuPoint64* start)
 {
 	size = 0;
 	capacity = sz;
+	points = start;
+	/*
     cudaError_t err = cudaMallocManaged(&points,sz*sizeof(cuPoint64));
     if (err != cudaSuccess)
     {
         std::cout << "Memory allocation failed"<<std::endl;
-    }
+    }*/
 }
 
 
 
 cuPath64::~cuPath64()
 {
-	cudaFree(points);
+	// cudaFree(points);
 }
 
 void cuPathD::init(int sz) {
@@ -136,14 +154,21 @@ cuPaths64::cuPaths64() {
 void cuPaths64::init(const Paths64& paths)
 {
 	size = paths.size();
+	total_points = 0;
+	for (auto path : paths) {
+		total_points += path.size();
+	}
     cudaError_t err = cudaMallocManaged(&cupaths, size*sizeof(cuPath64));
     if (err != cudaSuccess)
     {
         std::cout << "Memory allocation failed"<<std::endl;
     }
+    cudaMallocManaged(&allpoints, total_points * sizeof(cuPoint64));
 
+    int offset = 0;
     for(size_t i = 0;i<size;++i){
-    	cupaths[i].init(paths[i]);
+    	cupaths[i].init(paths[i], allpoints + offset);
+    	offset = offset + paths[i].size();
     }
 
 }
@@ -163,19 +188,27 @@ Paths64 cuPaths64::toPaths64() const
 void cuPaths64::initShapeOnly(const Paths64& paths, int factor)
 {
 	size = paths.size();
-
+	total_points = 0;
+	for (auto path : paths) {
+		total_points += path.size();
+	}
+	total_points = total_points * factor;
     cudaError_t err = cudaMallocManaged(&cupaths, size*sizeof(cuPath64));
     if (err != cudaSuccess)
     {
         std::cout << "Memory allocation failed"<<std::endl;
     }
-
+    cudaMallocManaged(&allpoints, total_points * sizeof(cuPoint64));
+    int offset = 0;
     for(size_t i = 0;i<size;++i){
-    	cupaths[i].init(factor * paths[i].size());
+    	int sz1 = factor * paths[i].size();
+    	cupaths[i].init(sz1, allpoints + offset);
+    	offset = offset + sz1;
     }
 
 }
 
+/*
 void cuPaths64::init(int sz)
 {
 	size = sz;
@@ -185,10 +218,11 @@ void cuPaths64::init(int sz)
         std::cout << "Memory allocation failed"<<std::endl;
     }
 }
-
+*/
 
 cuPaths64::~cuPaths64(){
 	cudaFree(cupaths);
+	cudaFree(allpoints);
 }
 
 // common functions
@@ -208,6 +242,10 @@ __host__ __device__ double CrossProduct(const cuPointD& pt1, const cuPointD& pt2
       pt2.y) - static_cast<double>(pt2.y - pt1.y) * static_cast<double>(pt3.x - pt2.x));
   }
 
+__host__ __device__ double CrossProduct(const cuPointD& vec1, const cuPointD& vec2)
+{
+  return static_cast<double>(vec1.y * vec2.x) - static_cast<double>(vec2.y * vec1.x);
+}
 __host__ __device__ double DotProduct(const cuPointD& vec1, const cuPointD& vec2)
 {
   return (vec1.x * vec2.x) + (vec1.y * vec2.y);

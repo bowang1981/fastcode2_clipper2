@@ -1,7 +1,7 @@
 #include <omp.h>
 #include "clipper2/clipper_openmp.h"
 namespace Clipper2Lib {
-    inline Paths64 Union_OpenMP(const Paths64& subjects, FillRule fillrule, int thread_num )
+    Paths64 Union_OpenMP(const Paths64& subjects, FillRule fillrule, int thread_num )
     {
         std::vector<Paths64> subjectsVec, resultsVec;
         int sz1 = subjects.size() / thread_num + 1;
@@ -31,7 +31,7 @@ namespace Clipper2Lib {
         return result;
     }
 
-    inline double Area_OpenMP(const Path64& path, int num_t)
+    double Area_OpenMP(const Path64& path, int num_t)
     {
         size_t cnt = path.size();
         if (cnt < 3) return 0.0;
@@ -74,7 +74,7 @@ namespace Clipper2Lib {
     }
 
 // In this version, we do the parallization in each polygon. We'll have another version on high level.
-    inline double Area_OpenMP(const Paths64& paths, int thread_num)
+    double Area_OpenMP(const Paths64& paths, int thread_num)
     {
         double a = 0.0;
         for (Paths64::const_iterator paths_iter = paths.cbegin();
@@ -85,5 +85,45 @@ namespace Clipper2Lib {
         return a;
     }
 
+    // this will only process overlaping rectangles
+    void RectClip_OpenMP(const Paths64& paths, Rect64& rect, Paths64& result)
+    {
+        RectClip64 rectClipper(rect);
+        #pragma omp parallel for num_threads(32)
+        for (const Path64& path : paths)
+        {
+        Rect64 path_bounds = GetBounds(path);
+        OutPt2List partial_results = OutPt2List();
+        std::vector<Location> start_locs = std::vector<Location>();
+        OutPt2List edges[8];
+        std::deque<OutPt2> op_container = std::deque<OutPt2>();
+        rectClipper.ExecuteInternal(path, path_bounds, start_locs, partial_results, op_container, edges);
+        rectClipper.CheckEdges(partial_results, edges);
+        for (int i = 0; i < 4; ++i)
+            rectClipper.TidyEdges(i, edges[i * 2], edges[i * 2 + 1], partial_results);
+
+        Paths64 tmpResults;
+        for (OutPt2*& op : partial_results)
+        {
+            Path64 tmp = rectClipper.GetPath(op);
+            if (!tmp.empty())
+            {
+                tmpResults.emplace_back(tmp);
+            }
+        } 
+        // The algorithm is already implemented, the critical section below is only for the display process that need only one final result
+        // if we don't need to display it, or we have function to display the partial at the same time, we can remove the critical section
+        // which means this not necessary in time calculation.
+
+        #pragma omp critical
+        {
+            for (Path64 tmp : tmpResults)
+            {
+                result.emplace_back(tmp);
+            }
+        }
+
+        }
+    }
 
 }

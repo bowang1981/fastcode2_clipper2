@@ -310,7 +310,7 @@ __global__ void executeClip(const cuPaths64& input, cuRect64* rect ,cuPaths64& o
 
 
 
-void rectclip_execute(const Paths64& input, const Rect64& rect, Paths64& output) {
+void rectclip_execute(const Paths64& input, const Rect64& rect, Paths64& output, Paths64& overlaps) {
 	cuPaths64* paths;
 	cudaMallocManaged(&paths, sizeof(cuPaths64));
 	paths->init(input);
@@ -325,9 +325,8 @@ void rectclip_execute(const Paths64& input, const Rect64& rect, Paths64& output)
 	r1->left = rect.left;
 	r1->right = rect.right;
 
-	filter<<<10, 128>>>(paths, r1, filterarr);
+	filter<<<100, 128>>>(paths, r1, filterarr);
 	cudaDeviceSynchronize();
-	Paths64 overlaps;
 
 	for (int i = 0; i < input.size(); ++i) {
 		if (filterarr[i] == 1) { // inside, just add into output
@@ -337,20 +336,22 @@ void rectclip_execute(const Paths64& input, const Rect64& rect, Paths64& output)
 		}
 	}
 
-	cuPaths64* ins;
-	cudaMallocManaged(&ins, sizeof(cuPaths64));
-	ins->init(overlaps);
+  // RectClip_OpenMP(overlaps, rect, output); //TODO：move this out of cu file.
 
-	cuPaths64* outs;
-	cudaMallocManaged(&outs, sizeof(cuPaths64));
-	outs->initShapeOnly(overlaps, 2);
+	// cuPaths64* ins;
+	// cudaMallocManaged(&ins, sizeof(cuPaths64));
+	// ins->init(overlaps);
 
-	testonly_updateverticecount<<<1, 1>>>(ins, outs);
-	cudaDeviceSynchronize();
-	output = outs->toPaths64();
+	// cuPaths64* outs;
+	// cudaMallocManaged(&outs, sizeof(cuPaths64));
+	// outs->initShapeOnly(overlaps, 2);
 
-	cudaFree(ins);
-	cudaFree(outs);
+	// testonly_updateverticecount<<<1, 1>>>(ins, outs);
+	// cudaDeviceSynchronize();
+	// output = outs->toPaths64();
+
+	// cudaFree(ins);
+	// cudaFree(outs);
 	/*
 
 	///TBD: continue process overlaps, and add into output

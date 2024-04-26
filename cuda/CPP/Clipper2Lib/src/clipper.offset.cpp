@@ -10,6 +10,8 @@
 #include <cmath>
 #include "clipper2/clipper.h"
 #include "clipper2/clipper.offset.h"
+#include "clipper2/clipper.offset.cuh"
+#include "../../Utils/Timer.h"
 
 namespace Clipper2Lib {
 
@@ -366,6 +368,8 @@ void ClipperOffset::DoRound(const Path64& path, size_t j, size_t k, double angle
 	path_out.push_back(Point64(pt.x + offsetVec.x, pt.y + offsetVec.y));
 #endif
 	int steps = static_cast<int>(std::ceil(steps_per_rad_ * std::abs(angle))); // #448, #456
+
+	// std::cout << "(step" << j <<"," << steps << ")" ;
 	for (int i = 1; i < steps; ++i) // ie 1 less than steps
 	{
 		offsetVec = PointD(offsetVec.x * step_cos_ - step_sin_ * offsetVec.y,
@@ -386,7 +390,7 @@ void ClipperOffset::OffsetPoint(Group& group, const Path64& path, size_t j, size
 	// A == PI: edges 'spike'
 	// sin(A) < 0: right turning
 	// cos(A) < 0: change in angle is more than 90 degree
-
+	// std::cout <<"step" << j << ", " << k << std::endl;
 	if (path[j] == path[k]) { k = j; return; }
 
 	double sin_a = CrossProduct(norms[j], norms[k]);
@@ -395,6 +399,7 @@ void ClipperOffset::OffsetPoint(Group& group, const Path64& path, size_t j, size
 	else if (sin_a < -1.0) sin_a = -1.0;
 
 	if (deltaCallback64_) {
+		std::cout << "Called Detlagroup!!!!!" << std::endl;
 		group_delta_ = deltaCallback64_(path, norms, j, k);
 		if (group.is_reversed) group_delta_ = -group_delta_;
 	}
@@ -517,6 +522,7 @@ void ClipperOffset::OffsetOpenPath(Group& group, const Path64& path)
 
 void ClipperOffset::DoGroupOffset(Group& group)
 {
+	Timer t;
 	if (group.end_type == EndType::Polygon)
 	{
 		// a straight path (2 points) can now also be 'polygon' offset 
@@ -608,9 +614,68 @@ void ClipperOffset::DoGroupOffset(Group& group)
 		else if (end_type_ == EndType::Joined) OffsetOpenJoined(group, *path_in_it);
 		else OffsetOpenPath(group, *path_in_it);
 	}
+    std::cout << "CPU: GroupOffset: "
+              << t.elapsed_str() << std::endl;
 }
 
+void ClipperOffset::DoGroupOffset_CUDA(Group& group)
+{
+	Timer t;
+	if (group.end_type == EndType::Polygon)
+	{
+		// a straight path (2 points) can now also be 'polygon' offset
+		// where the ends will be treated as (180 deg.) joins
+		if (group.lowest_path_idx < 0) delta_ = std::abs(delta_);
+		group_delta_ = (group.is_reversed) ? -delta_ : delta_;
+	}
+	else
+		group_delta_ = std::abs(delta_);// *0.5;
 
+	double abs_delta = std::fabs(group_delta_);
+	if (!ValidateBounds(group.bounds_list, abs_delta))
+	{
+		DoError(range_error_i);
+		error_code_ |= range_error_i;
+		return;
+	}
+
+	join_type_	= group.join_type;
+	end_type_ = group.end_type;
+
+	if (group.join_type == JoinType::Round || group.end_type == EndType::Round)
+	{
+		// calculate a sensible number of steps (for 360 deg for the given offset)
+		// arcTol - when arc_tolerance_ is undefined (0), the amount of
+		// curve imprecision that's allowed is based on the size of the
+		// offset (delta). Obviously very large offsets will almost always
+		// require much less precision. See also offset_triginometry2.svg
+		double arcTol = (arc_tolerance_ > floating_point_tolerance ?
+			std::min(abs_delta, arc_tolerance_) :
+			std::log10(2 + abs_delta) * default_arc_tolerance);
+
+		double steps_per_360 = std::min(PI / std::acos(1 - arcTol / abs_delta), abs_delta * PI);
+		step_sin_ = std::sin(2 * PI / steps_per_360);
+		step_cos_ = std::cos(2 * PI / steps_per_360);
+		if (group_delta_ < 0.0) step_sin_ = -step_sin_;
+		steps_per_rad_ = steps_per_360 / (2 * PI);
+	}
+// CUDA only support EndType::Polygon
+	OffsetParam param;
+	param.join_type_ = static_cast<int>(join_type_);
+	param.floating_point_tolerance = floating_point_tolerance;
+	param.step_cos_ = step_cos_;
+	param.step_sin_ = step_sin_;
+	param.steps_per_rad_ = steps_per_rad_;
+	param.temp_lim_ = temp_lim_;
+	{
+		Timer t1;
+	offset_execute(group.paths_in, group_delta_, solution, param );
+    std::cout << "CUDA: Call Kernel: "
+              << t1.elapsed_str() << std::endl;
+	}
+    std::cout << "CUDA: GroupOffset: "
+              << t.elapsed_str() << std::endl;
+}
 size_t ClipperOffset::CalcSolutionCapacity()
 {
 	size_t result = 0;
@@ -663,13 +728,83 @@ void ClipperOffset::ExecuteInternal(double delta)
 	}
 }
 
-void ClipperOffset::Execute(double delta, Paths64& paths)
+
+void ClipperOffset::ExecuteInternal_CUDA(double delta)
+{
+	error_code_ = 0;
+	solution.clear();
+	if (groups_.size() == 0) return;
+	// solution.reserve(CalcSolutionCapacity());
+
+	if (std::abs(delta) < 0.5) // ie: offset is insignificant
+	{
+		Paths64::size_type sol_size = 0;
+		for (const Group& group : groups_) sol_size += group.paths_in.size();
+		solution.reserve(sol_size);
+		for (const Group& group : groups_)
+			copy(group.paths_in.begin(), group.paths_in.end(), back_inserter(solution));
+		return;
+	}
+
+	temp_lim_ = (miter_limit_ <= 1) ?
+		2.0 :
+		2.0 / (miter_limit_ * miter_limit_);
+
+	delta_ = delta;
+	std::vector<Group>::iterator git;
+	for (git = groups_.begin(); git != groups_.end(); ++git)
+	{
+		DoGroupOffset_CUDA(*git);
+		if (!error_code_) continue; // all OK
+		solution.clear();
+	}
+}
+
+void ClipperOffset::Execute_CUDA(double delta, Paths64& paths , bool skipUnion)
+{
+	paths.clear();
+	{
+	Timer t;
+	ExecuteInternal_CUDA(delta);
+    std::cout << "CUDA: ExecuteInternal: "
+              << t.elapsed_str() << std::endl;
+	}
+	if(skipUnion) {
+		Timer t;
+		paths = solution;
+	    std::cout << "Execute copy result: "
+	              << t.elapsed_str() << std::endl;
+		return;
+	}
+	if (!solution.size()) return;
+
+	bool paths_reversed = CheckReverseOrientation();
+	//clean up self-intersections ...
+	Clipper64 c;
+	c.PreserveCollinear(false);
+	//the solution should retain the orientation of the input
+	c.ReverseSolution(reverse_solution_ != paths_reversed);
+#ifdef USINGZ
+	if (zCallback64_) { c.SetZCallback(zCallback64_); }
+#endif
+	c.AddSubject(solution);
+	if (paths_reversed)
+		c.Execute(ClipType::Union, FillRule::Negative, paths);
+	else
+		c.Execute(ClipType::Union, FillRule::Positive, paths);
+}
+
+void ClipperOffset::Execute(double delta, Paths64& paths, bool skipUnion)
 {
 	paths.clear();
 
 	ExecuteInternal(delta);
-	if (!solution.size()) return;
 
+	if (!solution.size()) return;
+	if (skipUnion) {
+		paths = solution; // TEST CODE
+		return;
+	}
 	bool paths_reversed = CheckReverseOrientation();
 	//clean up self-intersections ...
 	Clipper64 c;

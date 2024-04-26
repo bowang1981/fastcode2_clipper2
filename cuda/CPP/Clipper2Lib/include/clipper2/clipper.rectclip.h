@@ -38,8 +38,7 @@ namespace Clipper2Lib
 
   class RectClip64 {
   private:
-    void ExecuteInternal(const Path64& path);
-    Path64 GetPath(OutPt2*& op);
+    
   protected:
     const Rect64 rect_;
     const Path64 rect_as_path_;
@@ -49,18 +48,33 @@ namespace Clipper2Lib
     OutPt2List results_;  // each path can be broken into multiples
     OutPt2List edges_[8]; // clockwise and counter-clockwise
     std::vector<Location> start_locs_;
+    void ExecuteInternal(const Path64& path);
+    
     void CheckEdges();
+
     void TidyEdges(int idx, OutPt2List& cw, OutPt2List& ccw);
+
     void GetNextLocation(const Path64& path,
       Location& loc, int& i, int highI);
+    void GetNextLocation(const Path64& path,
+    Location& loc, int& i, int highI, std::deque<OutPt2>& op_container, OutPt2List& partial_results);
+
     OutPt2* Add(Point64 pt, bool start_new = false);
+    OutPt2* Add(Point64 pt, std::deque<OutPt2>& op_container, OutPt2List& partial_results, bool start_new = false);
     void AddCorner(Location prev, Location curr);
     void AddCorner(Location& loc, bool isClockwise);
+    void AddCorner(Location prev, Location curr, std::deque<OutPt2>& op_container, OutPt2List& partial_results);
+    void AddCorner(Location& loc, bool isClockwise, std::deque<OutPt2>& op_container, OutPt2List& partial_results);
   public:
+    void ExecuteInternal(const Path64& path, Rect64& path_bounds, std::vector<Location>& start_locs, OutPt2List& partial_results, std::deque<OutPt2>& op_container, OutPt2List edges[8]);
+    void CheckEdges(OutPt2List& partial_results, OutPt2List edges[8]);
+    void TidyEdges(int idx, OutPt2List& cw, OutPt2List& ccw, OutPt2List& partial_results);
+    Path64 GetPath(OutPt2*& op);
     explicit RectClip64(const Rect64& rect) :
       rect_(rect),
       rect_as_path_(rect.AsPath()),
       rect_mp_(rect.MidPoint()) {}
+    Paths64 Execute_CUDA(const Paths64& paths);
     Paths64 Execute(const Paths64& paths);
   };
 

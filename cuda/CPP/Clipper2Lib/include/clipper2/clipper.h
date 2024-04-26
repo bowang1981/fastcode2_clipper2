@@ -201,6 +201,13 @@ namespace Clipper2Lib {
     return TranslatePaths<double>(paths, dx, dy);
   }
 
+  inline Paths64 RectClip_CUDA(const Rect64& rect, const Paths64& paths)
+  {
+    if (rect.IsEmpty() || paths.empty()) return Paths64();
+    RectClip64 rc(rect);
+    return rc.Execute_CUDA(paths);
+  }
+
   inline Paths64 RectClip(const Rect64& rect, const Paths64& paths)
   {
     if (rect.IsEmpty() || paths.empty()) return Paths64();
