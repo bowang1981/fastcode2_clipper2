@@ -63,6 +63,7 @@ struct cuPaths64 {
 	cuPath64* cupaths;
 	cuPoint64* allpoints;
 	int size;
+	int total_points;
 };
 
 __device__ void Append(cuPath64& input, int64_t x, int64_t y);

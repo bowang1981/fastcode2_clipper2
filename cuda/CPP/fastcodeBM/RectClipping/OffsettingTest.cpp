@@ -11,7 +11,7 @@ namespace OffsettingTest {
 
     void doOffsetTest() {
     	//for (int kk = 0; kk < 10000; ++kk)
-		int64_t pcnt = 20000;
+		int64_t pcnt = 1000000;
     	{
 
         Paths64 subject = TestGenerator::MakeTestCase(pcnt, 100);

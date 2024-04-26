@@ -1,6 +1,6 @@
 #include "clipper2/clipper.offset.cuh"
 #include "clipper2/clipper.core.cuh"
-
+#include "../../Utils/Timer.h"
 
 namespace Clipper2Lib {
 
@@ -316,8 +316,27 @@ __global__ void offset_kernel(cuPaths64* input, cuPaths64* output,
 	for (int i = id * batch; i < (id+1) * batch && i < input->size; ++i) {
 		OffsetPolygon(input->cupaths[i], output->cupaths[i], group_delta, param, debug);
 	}
+
 }
 
+__global__ void setvalueonly_kernel(cuPaths64* input, cuPaths64* output,
+							double group_delta, OffsetParam* param, int* debug)
+{
+
+	// call offsetPolygon here
+	int total = gridDim.x * blockDim.x;
+	int batch = input->size / total + 1;
+	int id = blockIdx.x * blockDim.x + threadIdx.x;
+	for (int i = id * batch; i < (id+1) * batch && i < input->size; ++i) {
+		//OffsetPolygon(input->cupaths[i], output->cupaths[i], group_delta, param, debug);
+		for (int j = 0; j < output->cupaths[i].size; ++j)
+		{
+			output->cupaths[i].push_back(j, 1+j);
+
+		}
+	}
+
+}
 
 void offset_execute(const Paths64& input, double delta, Paths64& output,  const OffsetParam& param)
 {
@@ -326,6 +345,8 @@ void offset_execute(const Paths64& input, double delta, Paths64& output,  const 
 	// call the kernel offset_kernel here
 	// We only support offsetPolygon
 
+
+	Timer t1;
 	cuPaths64* paths;
 	cudaMallocManaged(&paths, sizeof(cuPaths64));
 	paths->init(input);
@@ -344,13 +365,29 @@ void offset_execute(const Paths64& input, double delta, Paths64& output,  const 
 	int* debug;
 	cudaMallocManaged(&debug, 16 * sizeof(int));
 
+	int device = -1;
+	cudaGetDevice(&device);
+	cudaMemPrefetchAsync(paths->allpoints, paths->total_points, device, NULL);
+	cudaMemPrefetchAsync(res->allpoints, res->total_points, device, NULL);
 
+
+	{
+	Timer t;
 	std::cout << "Luanch CUDA:"  << std::endl;
-	offset_kernel<<<8, 128>>>(paths, res, delta, cuparam, debug);
+	offset_kernel<<<32, 64>>>(paths, res, delta, cuparam, debug);
+	//setvalueonly_kernel<<<1, 1>>>(paths, res, delta, cuparam, debug);
 	cudaDeviceSynchronize();
-
+    std::cout << "CUDA: Kernel Run time: "
+              << t.elapsed_str() << std::endl;
+	}
+    std::cout << "CUDA: Kernel run until toPaths64: "
+              << t1.elapsed_str() << std::endl;
+	{
+		Timer t;
 	output = res->toPaths64();
-
+    std::cout << "ToPaths64: "
+              << t.elapsed_str() << std::endl;
+	}
 	std::cout << std::endl;
 	cudaFree(debug);
 	cudaFree(paths);

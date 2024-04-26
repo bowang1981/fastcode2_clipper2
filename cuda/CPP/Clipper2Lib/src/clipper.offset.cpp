@@ -11,6 +11,7 @@
 #include "clipper2/clipper.h"
 #include "clipper2/clipper.offset.h"
 #include "clipper2/clipper.offset.cuh"
+#include "../../Utils/Timer.h"
 
 namespace Clipper2Lib {
 
@@ -521,6 +522,7 @@ void ClipperOffset::OffsetOpenPath(Group& group, const Path64& path)
 
 void ClipperOffset::DoGroupOffset(Group& group)
 {
+	Timer t;
 	if (group.end_type == EndType::Polygon)
 	{
 		// a straight path (2 points) can now also be 'polygon' offset 
@@ -612,10 +614,13 @@ void ClipperOffset::DoGroupOffset(Group& group)
 		else if (end_type_ == EndType::Joined) OffsetOpenJoined(group, *path_in_it);
 		else OffsetOpenPath(group, *path_in_it);
 	}
+    std::cout << "CPU: GroupOffset: "
+              << t.elapsed_str() << std::endl;
 }
 
 void ClipperOffset::DoGroupOffset_CUDA(Group& group)
 {
+	Timer t;
 	if (group.end_type == EndType::Polygon)
 	{
 		// a straight path (2 points) can now also be 'polygon' offset
@@ -662,7 +667,14 @@ void ClipperOffset::DoGroupOffset_CUDA(Group& group)
 	param.step_sin_ = step_sin_;
 	param.steps_per_rad_ = steps_per_rad_;
 	param.temp_lim_ = temp_lim_;
+	{
+		Timer t1;
 	offset_execute(group.paths_in, group_delta_, solution, param );
+    std::cout << "CUDA: Call Kernel: "
+              << t1.elapsed_str() << std::endl;
+	}
+    std::cout << "CUDA: GroupOffset: "
+              << t.elapsed_str() << std::endl;
 }
 size_t ClipperOffset::CalcSolutionCapacity()
 {
@@ -751,11 +763,17 @@ void ClipperOffset::ExecuteInternal_CUDA(double delta)
 void ClipperOffset::Execute_CUDA(double delta, Paths64& paths , bool skipUnion)
 {
 	paths.clear();
-
+	{
+	Timer t;
 	ExecuteInternal_CUDA(delta);
-
+    std::cout << "CUDA: ExecuteInternal: "
+              << t.elapsed_str() << std::endl;
+	}
 	if(skipUnion) {
+		Timer t;
 		paths = solution;
+	    std::cout << "Execute copy result: "
+	              << t.elapsed_str() << std::endl;
 		return;
 	}
 	if (!solution.size()) return;
@@ -781,6 +799,7 @@ void ClipperOffset::Execute(double delta, Paths64& paths, bool skipUnion)
 	paths.clear();
 
 	ExecuteInternal(delta);
+
 	if (!solution.size()) return;
 	if (skipUnion) {
 		paths = solution; // TEST CODE

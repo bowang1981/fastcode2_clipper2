@@ -154,7 +154,7 @@ cuPaths64::cuPaths64() {
 void cuPaths64::init(const Paths64& paths)
 {
 	size = paths.size();
-	int total_points = 0;
+	total_points = 0;
 	for (auto path : paths) {
 		total_points += path.size();
 	}
@@ -188,16 +188,17 @@ Paths64 cuPaths64::toPaths64() const
 void cuPaths64::initShapeOnly(const Paths64& paths, int factor)
 {
 	size = paths.size();
-	int total_points = 0;
+	total_points = 0;
 	for (auto path : paths) {
 		total_points += path.size();
 	}
+	total_points = total_points * factor;
     cudaError_t err = cudaMallocManaged(&cupaths, size*sizeof(cuPath64));
     if (err != cudaSuccess)
     {
         std::cout << "Memory allocation failed"<<std::endl;
     }
-    cudaMallocManaged(&allpoints, total_points * factor * sizeof(cuPoint64));
+    cudaMallocManaged(&allpoints, total_points * sizeof(cuPoint64));
     int offset = 0;
     for(size_t i = 0;i<size;++i){
     	int sz1 = factor * paths[i].size();
