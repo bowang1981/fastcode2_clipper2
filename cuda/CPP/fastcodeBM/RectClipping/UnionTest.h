@@ -10,6 +10,7 @@ namespace UnionTest {
 	void benchmarks();
     void DoSquares();
     void DoPolygons();
+    void testSplitPathsPerf();
 };
 
 

@@ -4,6 +4,8 @@
 #include <iostream>
 #include <vector>
 
+#include "../../Utils/Timer.h"
+
 
 
 namespace Clipper2Lib {
@@ -250,6 +252,74 @@ __host__ __device__ double DotProduct(const cuPointD& vec1, const cuPointD& vec2
 {
   return (vec1.x * vec2.x) + (vec1.y * vec2.y);
 }
+
+
+/****************************************************************************************/
+// Some testing codes for performance test.
+
+void test_cuda_copy(int pctn) {
+	cuPath64* paths, *dev_paths;
+	paths = (cuPath64*)malloc(pctn * sizeof(cuPath64));
+	cudaMalloc(&dev_paths, pctn * sizeof(cuPath64));
+	cuPoint64* pts, *dev_pts;
+	pts = (cuPoint64*)malloc(pctn* 100 * sizeof(cuPoint64));
+	cudaMalloc(&dev_pts, pctn * 100 * sizeof(cuPoint64));
+	{
+		Timer t;
+	cudaMemcpy(dev_paths, paths, pctn * sizeof(cuPath64), cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_pts, pts, pctn *100* sizeof(cuPath64), cudaMemcpyHostToDevice);
+	std::cout << "Copy to Device[ " << pctn << "]"
+			  << t.elapsed_str() << std::endl;
+	}
+	{
+		Timer t;
+	cudaMemcpy(paths, dev_paths, pctn * sizeof(cuPath64), cudaMemcpyDeviceToHost);
+	cudaMemcpy(pts, dev_pts, pctn *100* sizeof(cuPath64), cudaMemcpyDeviceToHost);
+	std::cout << "Copy to Host[ " << pctn << "]"
+			  << t.elapsed_str() << std::endl;
+	}
+}
+
+
+void test_convert_performance(const Paths64& input)
+{
+	{
+		Timer t1;
+		cuPaths64* paths;
+		cudaMallocManaged(&paths, sizeof(cuPaths64));
+		paths->init(input);
+
+		std::cout << "Convert to CUDA format[ " << input.size() << "]"
+				  << t1.elapsed_str() << std::endl;
+		{
+			Timer t2;
+			Paths64 output = paths->toPaths64();
+			std::cout << "Convert to Clipper format[ " << input.size() << "]"
+					  << t2.elapsed_str() << std::endl;
+		}
+	}
+
+	{
+		Timer t1;
+		cuPaths64* res;
+		cudaMallocManaged(&res, sizeof(cuPaths64));
+		res->initShapeOnly(input, 4);
+		std::cout << "Convert to CUDA format Shape only[ " << input.size() << "]"
+				  << t1.elapsed_str() << std::endl;
+	}
+
+	test_cuda_copy(10000);
+	test_cuda_copy(100000);
+	test_cuda_copy(1000000);
+}
+
+
+
+
+
+
+
+
 
 }
 

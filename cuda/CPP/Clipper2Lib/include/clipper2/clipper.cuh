@@ -14,5 +14,7 @@ void wrap_test_print();
 
 void rectclip_execute(const Paths64& input, const Rect64& rect, Paths64& output);
 
+void test_convert_performance(const Paths64& input);
+
 }
 #endif

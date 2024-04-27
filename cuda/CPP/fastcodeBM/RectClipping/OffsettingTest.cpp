@@ -5,10 +5,26 @@
 #include "OffsettingTest.h"
 #include "clipper2/clipper.h"
 #include "clipper2/clipper_openmp.h"
+#include "clipper2/clipper.cuh"
 #include "TestGenerator.h"
 #include "../../Utils/Timer.h"
 using namespace Clipper2Lib;
 namespace OffsettingTest {
+
+	void doConvertTest(int pctn) {
+		Paths64 ps = TestGenerator::MakeTestCase(pctn, 100);
+		test_convert_performance(ps);
+	}
+
+	void doConvertTests()
+	{
+		doConvertTest(1000);
+		doConvertTest(10000);
+		doConvertTest(100000);
+		doConvertTest(1000000);
+
+	}
+
 
     void doOffsetTest() {
     	//for (int kk = 0; kk < 10000; ++kk)

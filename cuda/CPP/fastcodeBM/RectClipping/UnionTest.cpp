@@ -54,8 +54,26 @@ namespace UnionTest {
 	void benchmarks() {
 		benchmark(1000);
 		benchmark(10000);
-		//benchmark(100000);
-		//benchmark(500000);
+		benchmark(100000);
+		benchmark(1000000);
+	}
+
+	void testSplitPaths(int cnt, int split)
+	{
+		Paths64 paths = TestGenerator::MakeTestCase(cnt, 100);
+		std::vector<Paths64> subjectsVec;
+		{
+		Timer t;
+
+		splitPaths(paths, split, true, subjectsVec);
+        std::cout << "Split " << cnt << " polygons: "<< t.elapsed_str() << std::endl;
+		}
+	}
+
+	void testSplitPathsPerf() {
+		testSplitPaths(10000, 8);
+		testSplitPaths(1000000, 8);
+		testSplitPaths(1000000, 16);
 	}
     void DoSquares()
     {
