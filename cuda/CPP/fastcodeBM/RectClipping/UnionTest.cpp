@@ -11,6 +11,52 @@
 using namespace Clipper2Lib;
 using namespace std;
 namespace UnionTest {
+
+	void benchmark(int64_t pnum) {
+		Paths64 ps1 = TestGenerator::MakeTestCase(pnum / 2, 100);
+		Paths64 ps2 = TestGenerator::MakeTestCase(pnum / 2, 110);
+		Paths64 ps;
+		ps.reserve(ps1.size() + ps2.size());
+		for (int i = 0; i < pnum; ++i) {
+			if( i < ps1.size()) {
+				ps.push_back(ps1[i]);
+			}
+			if (i < ps2.size()) {
+				ps.push_back(ps2[i]);
+			}
+		}
+        //TestGenerator::SaveAndDisplay(ps, "uniontest_case.svg");
+        Paths64 solution;
+        ClipType cliptype = ClipType::Union;
+        FillRule fillrule = FillRule::NonZero;
+
+        std::vector<int> nums = {1, 2, 4, 8, 16, 32};
+        for (auto num : nums)
+        {
+            Timer t;
+            solution = Union_OpenMP(ps, fillrule, num);
+            std::cout << "thread_num[" << num << "]: Union_OpenMP on " << pnum <<" polygons: "
+                      << t.elapsed_str() << std::endl;
+           // TestGenerator::SaveAndDisplay(solution, "uniontest_openmp.svg");
+        }
+
+
+
+        {
+            Timer t;
+            solution = Union(ps, fillrule);
+            std::cout << "Union Baseline on " << pnum << " polygons: "<< t.elapsed_str() << std::endl;
+           // TestGenerator::SaveAndDisplay(solution, "uniontest_openmp.svg");
+        }
+
+	}
+
+	void benchmarks() {
+		benchmark(1000);
+		benchmark(10000);
+		//benchmark(100000);
+		//benchmark(500000);
+	}
     void DoSquares()
     {
         static const int w = 800, h = 600;

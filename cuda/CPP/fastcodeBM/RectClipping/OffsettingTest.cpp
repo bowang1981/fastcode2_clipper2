@@ -4,6 +4,7 @@
 
 #include "OffsettingTest.h"
 #include "clipper2/clipper.h"
+#include "clipper2/clipper_openmp.h"
 #include "TestGenerator.h"
 #include "../../Utils/Timer.h"
 using namespace Clipper2Lib;
@@ -11,7 +12,7 @@ namespace OffsettingTest {
 
     void doOffsetTest() {
     	//for (int kk = 0; kk < 10000; ++kk)
-		int64_t pcnt = 1000000;
+		int64_t pcnt = 500000;
     	{
 
         Paths64 subject = TestGenerator::MakeTestCase(pcnt, 100);
@@ -24,7 +25,7 @@ namespace OffsettingTest {
 
 			ClipperOffset offsetter;
 			offsetter.AddPaths(subject, JoinType::Round, EndType::Polygon);
-			offsetter.Execute(3, solution1, true);
+			offsetter.Execute(3, solution1, false);
 			// solution = SimplifyPaths(solution, 2.5);
             std::cout << "Baseline: Offset on " << pcnt << " polygons: "
                       << t.elapsed_str() << std::endl;
@@ -37,11 +38,23 @@ namespace OffsettingTest {
         	Timer t;
 			ClipperOffset offsetter;
 			offsetter.AddPaths(subject, JoinType::Round, EndType::Polygon);
-			offsetter.Execute_CUDA(3, solution2, true);
+			offsetter.Execute_CUDA(3, solution2, false);
 			//solution = SimplifyPaths(solution, 2.5);
             std::cout << "CUDA Offset on " << pcnt << " polygons: "
                       << t.elapsed_str() << std::endl;
 			rp_cuda = TestGenerator::GetPathsProp(solution2);
+
+	        //TestGenerator::SaveAndDisplay(solution, "offset2.svg");
+        }
+
+        {
+			Paths64 solution3;
+        	Timer t;
+        	Clipper2Lib::Offset_OpenMP(subject, 3, solution3, 8, false);
+
+            std::cout << "OpenMP Offset on [8 threads] " << pcnt << " polygons: "
+                      << t.elapsed_str() << std::endl;
+			rp_cuda = TestGenerator::GetPathsProp(solution3);
 
 	        //TestGenerator::SaveAndDisplay(solution, "offset2.svg");
         }

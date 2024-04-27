@@ -1,17 +1,78 @@
 #include <omp.h>
 #include "clipper2/clipper_openmp.h"
+#include "../../Utils/Timer.h"
 namespace Clipper2Lib {
-    Paths64 Union_OpenMP(const Paths64& subjects, FillRule fillrule, int thread_num )
+
+	void splitPaths(const Paths64& subjects, int thread_num, bool split_by_patch,
+			        std::vector<Paths64>& subjectsVec) {
+        subjectsVec.reserve(thread_num + 1);
+
+        if (split_by_patch == false) {
+        	int sz1 = subjects.size() / thread_num + 1;
+        	for (int i = 0; i < thread_num; ++i) {
+        		Paths64 tmpObjs;
+        		tmpObjs.reserve(sz1);
+        		for (int j = i * sz1; j < (i+1) * sz1 && j < subjects.size(); ++j) {
+        			tmpObjs.push_back(subjects[j]);
+        		}
+        		subjectsVec.emplace_back(tmpObjs);
+        	}
+        } else {
+        	Rect64 rect = GetBounds(subjects);
+        	int64_t width = rect.right - rect.left;
+        	int64_t grid_width = width / thread_num + 1;
+        	for (int i = 0; i < thread_num; ++i) {
+        		Paths64 tmp;
+        		tmp.reserve(subjects.size() * 2 / thread_num);
+        		subjectsVec.emplace_back(tmp);
+        	}
+        	for (auto& path : subjects) {
+        		int rId = (path[0].x - rect.left) / grid_width;
+        		subjectsVec[rId].push_back(path);
+        	}
+
+        }
+	}
+
+	void Union_Result_Merge(std::vector<Paths64>& subjectsVec, int thread_num,FillRule fillrule, Paths64& result) {
+        {
+
+        	Timer t1;
+        	std::vector<Paths64> resultsVec;
+        	resultsVec.reserve(subjectsVec.size());
+        	while (subjectsVec.size() >= 4) {
+				#pragma omp parallel for num_threads(thread_num)
+				for ( int i = 0; i < subjectsVec.size() / 2; ++i) {
+					Paths64 result1;
+					Clipper64 clipper;
+					clipper.AddSubject((subjectsVec)[2 * i]);
+					clipper.AddSubject((subjectsVec)[2 * i + 1]);
+					clipper.Execute(ClipType::Union, fillrule, result1);
+					#pragma omp critical
+					resultsVec.push_back(result1);
+				}
+				subjectsVec = resultsVec;
+				resultsVec.clear();
+        	}
+        	{
+        	Clipper64 clipper;
+        	for (int i = 0; i < subjectsVec.size(); ++i) {
+        		clipper.AddSubject(subjectsVec[i]);
+        	}
+        	clipper.Execute(ClipType::Union, fillrule, result);
+
+        	}
+        }
+	}
+
+    Paths64 Union_OpenMP(const Paths64& subjects, FillRule fillrule,
+    		int thread_num, bool split_by_patch )
     {
         std::vector<Paths64> subjectsVec, resultsVec;
-        int sz1 = subjects.size() / thread_num + 1;
-        for (int i = 0; i < thread_num; ++i) {
-            Paths64 tmpObjs;
-            for (int j = i * sz1; j < (i+1) * sz1 && j < subjects.size(); ++j) {
-                tmpObjs.push_back(subjects[j]);
-            }
-            subjectsVec.push_back(tmpObjs);
-        }
+        splitPaths(subjects, thread_num, split_by_patch, subjectsVec);
+        resultsVec.reserve(thread_num + 1);
+
+        Timer t;
         #pragma omp parallel for num_threads(thread_num)
         for ( int i = 0; i < thread_num; ++i) {
             Paths64 result1;
@@ -21,14 +82,66 @@ namespace Clipper2Lib {
             #pragma omp critical
             resultsVec.push_back(result1);
         }
+        std::cout << " Runtime(parallel time) " << subjects.size() << " polygons: "
+                             << t.elapsed_str() << std::endl;
 
         Paths64 result;
-        Clipper64 clipper;
-        for (int i = 0; i < resultsVec.size(); ++i) {
-            clipper.AddSubject(resultsVec[i]);
+        {
+        	Timer t1;
+        	// Union_Result_Merge(resultsVec, thread_num, fillrule, result);
+        	Clipper64 clipper;
+        	for (int i = 0; i < resultsVec.size(); ++i) {
+        		clipper.AddSubject(resultsVec[i]);
+        	}
+        	clipper.Execute(ClipType::Union, fillrule, result);
+            std::cout << " Runtime(Merge Result) " << subjects.size() << " polygons: "
+                                 << t1.elapsed_str() << std::endl;
         }
-        clipper.Execute(ClipType::Union, fillrule, result);
         return result;
+    }
+
+    void Offset_OpenMP(const Paths64& paths, double delta, Paths64& result,
+    		int thread_num, bool skipUnion)
+    {
+    	Timer t;
+        std::vector<Paths64> subjectsVec, resultsVec;
+        subjectsVec.reserve(thread_num);
+        resultsVec.reserve(thread_num);
+        int sz1 = paths.size() / thread_num + 1;
+        for (int i = 0; i < thread_num; ++i) {
+            Paths64 tmpObjs;
+            for (int j = i * sz1; j < (i+1) * sz1 && j < paths.size(); ++j) {
+                tmpObjs.push_back(paths[j]);
+            }
+            subjectsVec.emplace_back(tmpObjs);
+            resultsVec.push_back(Paths64());
+        }
+        std::cout << "OpenMP: Convert Data: "
+                  << t.elapsed_str() << std::endl;
+        #pragma omp parallel for num_threads(thread_num)
+        for ( int i = 0; i < thread_num; ++i) {
+
+            Paths64 result1;
+			ClipperOffset offsetter;
+			offsetter.AddPaths(subjectsVec[i], JoinType::Round, EndType::Polygon);
+			offsetter.Execute(delta, result1, skipUnion);
+
+            resultsVec[i] = result1;
+        }
+        {
+        	Timer t1;
+        int cnt = 0;
+        for (auto paths : resultsVec) {
+        	cnt += paths.size();
+        }
+        result.reserve(cnt);
+        for (auto& paths : resultsVec) {
+        	result.insert(result.end(), paths.begin(), paths.end());
+        }
+        std::cout << "OpenMP: Convert Data: "
+                  << t1.elapsed_str() << std::endl;
+        }
+
     }
 
     double Area_OpenMP(const Path64& path, int num_t)
