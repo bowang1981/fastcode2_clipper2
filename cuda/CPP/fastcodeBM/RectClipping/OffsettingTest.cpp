@@ -25,6 +25,55 @@ namespace OffsettingTest {
 
 	}
 
+	void benchmark(int pcnt) {
+		std::vector<int> thread_nums = {2, 4, 8, 16, 32};
+        Paths64 subject = TestGenerator::MakeTestCase(pcnt, 100);
+
+        {
+        	// baseline
+            Timer t;
+            Paths64 solution;
+			ClipperOffset offsetter;
+			{ Timer t1;
+			offsetter.AddPaths(subject, JoinType::Round, EndType::Polygon);
+            std::cout << "Baseline: AddPaths " << pcnt << " polygons: "
+                      << t.elapsed_str() << std::endl;
+			}
+			offsetter.Execute(3, solution, true);
+            std::cout << "Baseline: Offset on " << pcnt << " polygons: "
+                      << t.elapsed_str() << std::endl;
+        }
+        {
+        	// OpenMP
+        	for(auto tm : thread_nums) {
+    			Paths64 solution3;
+            	Timer t;
+            	Clipper2Lib::Offset_OpenMP(subject, 3, solution3, tm, true);
+
+                std::cout << "OpenMP Offset on [" << tm << " threads] " << pcnt << " polygons: "
+                          << t.elapsed_str() << std::endl;
+        	}
+        }
+        {
+        	// CUDA
+        	Timer t;
+			ClipperOffset offsetter;
+			Paths64 solution2;
+			offsetter.AddPaths(subject, JoinType::Round, EndType::Polygon);
+			offsetter.Execute_CUDA(3, solution2, true);
+            std::cout << "CUDA Offset on " << pcnt << " polygons: "
+                      << t.elapsed_str() << std::endl;
+        }
+	}
+
+	void benchmarks()
+	{
+		benchmark(1000);
+		benchmark(10000);
+		benchmark(100000);
+		benchmark(1000000);
+	}
+
 
     void doOffsetTest() {
     	//for (int kk = 0; kk < 10000; ++kk)

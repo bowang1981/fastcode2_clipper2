@@ -11,6 +11,7 @@ namespace OffsettingTest {
     void doOffsetTest();
     void doOffsetTest1();
 	void doConvertTests();
+	void benchmarks();
 };
 
 

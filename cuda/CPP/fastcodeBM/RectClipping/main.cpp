@@ -14,10 +14,11 @@ int main(int argc, char* argv[])
 {
     srand((unsigned)time(0));
     // AreaCalcTest::DoTestAreaCalc();
-    // Clipper2Lib::wrap_test_print();
+    Clipper2Lib::wrap_test_print();
    // UnionTest::testSplitPathsPerf();
     // UnionTest::benchmarks();
-     OffsettingTest::doConvertTests();
+     // OffsettingTest::doConvertTests();
+     OffsettingTest::benchmarks();
    // Clipper2Lib::Paths64 ps100 = TestGenerator::MakeTestCase(10, 30);
     //TestGenerator::SaveAndDisplay(ps100, "testcase100.svg", 800, 800);
 

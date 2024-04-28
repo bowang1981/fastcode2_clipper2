@@ -346,7 +346,7 @@ void offset_execute(const Paths64& input, double delta, Paths64& output,  const 
 	// We only support offsetPolygon
 
 
-	Timer t1;
+	Timer t;
 	cuPaths64* paths;
 	cudaMallocManaged(&paths, sizeof(cuPaths64));
 	paths->init(input);
@@ -369,26 +369,27 @@ void offset_execute(const Paths64& input, double delta, Paths64& output,  const 
 	cudaGetDevice(&device);
 	cudaMemPrefetchAsync(paths->allpoints, paths->total_points, device, NULL);
 	cudaMemPrefetchAsync(res->allpoints, res->total_points, device, NULL);
-
+	std::cout << "CUDA: Prepare Data: "
+	             << t.elapsed_str() << std::endl;
 
 	{
-	Timer t;
-	std::cout << "Luanch CUDA:"  << std::endl;
+	 Timer t1;
+	// std::cout << "Luanch CUDA:"  << std::endl;
 	offset_kernel<<<32, 64>>>(paths, res, delta, cuparam, debug);
 	//setvalueonly_kernel<<<1, 1>>>(paths, res, delta, cuparam, debug);
 	cudaDeviceSynchronize();
     std::cout << "CUDA: Kernel Run time: "
-              << t.elapsed_str() << std::endl;
-	}
-    std::cout << "CUDA: Kernel run until toPaths64: "
               << t1.elapsed_str() << std::endl;
-	{
-		Timer t;
-	output = res->toPaths64();
-    std::cout << "ToPaths64: "
-              << t.elapsed_str() << std::endl;
 	}
-	std::cout << std::endl;
+    // std::cout << "CUDA: Kernel run until toPaths64: "
+    //          << t1.elapsed_str() << std::endl;
+	{
+	Timer t1;
+	output = res->toPaths64();
+     std::cout << "Convert data from cuPaths64: "
+             << t1.elapsed_str() << std::endl;
+	}
+	// std::cout << std::endl;
 	cudaFree(debug);
 	cudaFree(paths);
 	cudaFree(res);

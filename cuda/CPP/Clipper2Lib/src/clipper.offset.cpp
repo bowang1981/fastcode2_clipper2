@@ -614,8 +614,8 @@ void ClipperOffset::DoGroupOffset(Group& group)
 		else if (end_type_ == EndType::Joined) OffsetOpenJoined(group, *path_in_it);
 		else OffsetOpenPath(group, *path_in_it);
 	}
-    std::cout << "CPU: GroupOffset: "
-              << t.elapsed_str() << std::endl;
+    //std::cout << "CPU: GroupOffset: "
+     //         << t.elapsed_str() << std::endl;
 }
 
 void ClipperOffset::DoGroupOffset_CUDA(Group& group)
@@ -670,11 +670,11 @@ void ClipperOffset::DoGroupOffset_CUDA(Group& group)
 	{
 		Timer t1;
 	offset_execute(group.paths_in, group_delta_, solution, param );
-    std::cout << "CUDA: Call Kernel: "
-              << t1.elapsed_str() << std::endl;
+ //   std::cout << "CUDA: Call Kernel: "
+  //            << t1.elapsed_str() << std::endl;
 	}
-    std::cout << "CUDA: GroupOffset: "
-              << t.elapsed_str() << std::endl;
+    //std::cout << "CUDA: GroupOffset: "
+      //        << t.elapsed_str() << std::endl;
 }
 size_t ClipperOffset::CalcSolutionCapacity()
 {
@@ -766,8 +766,8 @@ void ClipperOffset::Execute_CUDA(double delta, Paths64& paths , bool skipUnion)
 	{
 	Timer t;
 	ExecuteInternal_CUDA(delta);
-    std::cout << "CUDA: ExecuteInternal: "
-              << t.elapsed_str() << std::endl;
+    // std::cout << "CUDA: ExecuteInternal: "
+     //         << t.elapsed_str() << std::endl;
 	}
 	if(skipUnion) {
 		Timer t;

@@ -15,7 +15,7 @@ __global__ void test_print() {
 
 void wrap_test_print() {
 	test_print<<<1, 1>>>();
-	std::cout << "CUDA kernel launched!";
+	std::cout << "CUDA kernel launched!" << std::endl;
 	return;
 }
 

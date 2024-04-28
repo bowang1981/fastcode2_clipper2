@@ -116,8 +116,8 @@ namespace Clipper2Lib {
             subjectsVec.emplace_back(tmpObjs);
             resultsVec.push_back(Paths64());
         }
-        std::cout << "OpenMP: Convert Data: "
-                  << t.elapsed_str() << std::endl;
+       std::cout << "OpenMP: Prepare Data:  "
+                << t.elapsed_str() << std::endl;
         #pragma omp parallel for num_threads(thread_num)
         for ( int i = 0; i < thread_num; ++i) {
 
@@ -138,7 +138,7 @@ namespace Clipper2Lib {
         for (auto& paths : resultsVec) {
         	result.insert(result.end(), paths.begin(), paths.end());
         }
-        std::cout << "OpenMP: Convert Data: "
+         std::cout << "OpenMP: Convert Result Back: "
                   << t1.elapsed_str() << std::endl;
         }
 
