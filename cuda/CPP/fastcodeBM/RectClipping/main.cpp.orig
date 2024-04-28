@@ -13,11 +13,14 @@ using namespace Clipper2Lib;
 int main(int argc, char* argv[])
 {
     srand((unsigned)time(0));
+<<<<<<< HEAD
     Clipper2Lib::wrap_test_print();
     AreaCalcTest::benchmark_cuda();
-
+=======
+    AreaCalcTest::DoTestAreaCalc();
     // AreaCalcTest::DoTestAreaCalc3();
-
+    // Clipper2Lib::wrap_test_print();
+>>>>>>> origin/david_area
 
    // UnionTest::testSplitPathsPerf();
     // UnionTest::benchmarks();

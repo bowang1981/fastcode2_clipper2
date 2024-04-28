@@ -80,7 +80,7 @@ namespace Clipper2Lib {
     }
 
 // In this version, we do the parallization in each polygon. We'll have another version on high level.
-    inline double Area_OpenMP(const Paths64& paths, int thread_num)
+    inline double Area_OpenMP(const Paths64& paths, int thread_num=4)
     {
         double a = 0.0;
         for (Paths64::const_iterator paths_iter = paths.cbegin();
@@ -91,24 +91,13 @@ namespace Clipper2Lib {
         return a;
     }
 
-    // In this version, we use the original Clipper2 Area() function
-    inline double Area_OpenMP_With_Clipper2_Area(const Paths64& paths)
-    {
-        double totalSum = 0.0;
-        #pragma omp parallel for reduction(+:totalSum) 
-        for (const auto &p: paths) {
-            const auto localSum = Area(p);
-            totalSum+=localSum;
-        }
-        return totalSum;
-    }
 
 
-    // In this version, we implement our own area calculation function
-    inline double Area_OpenMP(const Paths64& paths)
+    // In this version, we calculate the case where 
+    inline double Area_OpenMP_Massive_Polygons(const Paths64& paths, int nt)
     {
         double totalSum = 0.0;
-        #pragma omp parallel for reduction(+:totalSum) 
+        #pragma omp parallel for reduction(+:totalSum) num_threads(nt)
         for (const auto &p: paths) {
             double localSum = 0.0;
             const auto pathSize = p.size();
