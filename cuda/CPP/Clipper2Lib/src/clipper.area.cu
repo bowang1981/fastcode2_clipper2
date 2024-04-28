@@ -8,7 +8,7 @@ namespace Clipper2Lib {
 ////////// Area Calculation related functions //////////////////////////////
 ***********************************************************************************************************************/
 
-__global__ void area(cuPath64* path, float* res)
+__global__ void area(cuPath64* path, double* res)
 {
     size_t cnt = path->size;
     if (cnt < 3) return;
@@ -33,12 +33,12 @@ __global__ void area(cuPath64* path, float* res)
 
         a+= a1;
     }
-    float res1 = atomicAdd(res, a);
+    double res1 = atomicAdd(res, a);
 
 }
 
 
-float area_single(const Path64& path) {
+double area_single(const Path64& path) {
 	int cnt = path.size();
 	cuPath64* p1;
     cudaError_t err = cudaMallocManaged(&p1, sizeof(cuPath64));
@@ -50,15 +50,15 @@ float area_single(const Path64& path) {
     }
     p1->init(path, points);
 
-	float* res;
-	cudaMallocManaged(&res, sizeof(float));
+	double* res;
+	cudaMallocManaged(&res, sizeof(double));
 
-	area<<<1, 10>>>(p1, res);
+	area<<<1, 32>>>(p1, res);
 	cudaDeviceSynchronize();
 
 	if (cnt & 1)
 	      *res = *res + static_cast<double>(path[cnt-2].y + path[cnt-1].y) * (path[cnt-2].x - path[cnt-1].x);
-	float area1 = (*res) * 0.5;
+	double area1 = (*res) * 0.5;
 	cudaFree(res);
 	cudaFree(p1);
 	cudaFree(points);

@@ -7,8 +7,8 @@
 
 
 namespace AreaCalcTest {
-    void DoTestAreaCalc();
-    void DoTestAreaCalc2();
+    void benchmark_cuda();
+    void benchmark_omp();
 };
 
 

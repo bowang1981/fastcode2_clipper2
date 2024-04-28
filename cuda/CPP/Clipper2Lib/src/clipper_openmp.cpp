@@ -99,12 +99,47 @@ namespace Clipper2Lib {
         }
         return result;
     }
+    void splitPathsByCount(const Paths64& paths, std::vector<Paths64>& output, int thread_num) {
+    	int64_t total_cnt = 0;
+    	for (auto& path : paths) {
+    		total_cnt += path.size();
+    	}
+    	output.reserve(thread_num);
+    	for (int i = 0; i < thread_num; ++i) {
+    		Paths64 tmp;
+    		tmp.reserve(2 * paths.size() / thread_num );
+    		output.emplace_back(tmp);
+    	}
+    	//std::cout << "so far ok1" << std::endl;
+    	int batch_size =total_cnt / thread_num + 1;
+    	int cnt = 0;
+    	int index = 0;
+    	for (auto& path : paths){
 
+    		if (cnt >= batch_size) {
+        		std::cout << "Count "<< cnt << std::endl;
+    			cnt = 0;
+    			++index;
+    		}
+
+    		output[index].push_back(path);
+
+    		cnt += path.size();
+    	}
+    	//std::cout << "so far ok2" << std::endl;
+    }
     void Offset_OpenMP(const Paths64& paths, double delta, Paths64& result,
     		int thread_num, bool skipUnion)
     {
     	Timer t;
+
         std::vector<Paths64> subjectsVec, resultsVec;
+        splitPathsByCount(paths, subjectsVec, thread_num);
+        for (int i = 0; i < thread_num; ++i) {
+            resultsVec.push_back(Paths64());
+        }
+       // std::cout << "subjectsize" << subjectsVec.size() << std::endl;
+        /*
         subjectsVec.reserve(thread_num);
         resultsVec.reserve(thread_num);
         int sz1 = paths.size() / thread_num + 1;
@@ -115,18 +150,21 @@ namespace Clipper2Lib {
             }
             subjectsVec.emplace_back(tmpObjs);
             resultsVec.push_back(Paths64());
-        }
+        }*/
        std::cout << "OpenMP: Prepare Data:  "
                 << t.elapsed_str() << std::endl;
+
         #pragma omp parallel for num_threads(thread_num)
         for ( int i = 0; i < thread_num; ++i) {
-
+        	Timer tt;
             Paths64 result1;
 			ClipperOffset offsetter;
 			offsetter.AddPaths(subjectsVec[i], JoinType::Round, EndType::Polygon);
 			offsetter.Execute(delta, result1, skipUnion);
 
             resultsVec[i] = result1;
+            std::cout << "OpenMP thread  " << omp_get_thread_num() << ": run " << i << ":"
+                     << tt.elapsed_str() << std::endl;
         }
         {
         	Timer t1;

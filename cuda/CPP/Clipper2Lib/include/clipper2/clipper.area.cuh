@@ -10,7 +10,7 @@
 #include "clipper2/clipper.core.h"
 namespace Clipper2Lib {
 
-float area_single(const Path64& path);
+double area_single(const Path64& path);
 float area_paths(const Paths64& paths);
 
 }

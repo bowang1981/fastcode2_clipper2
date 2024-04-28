@@ -70,6 +70,8 @@ if (NOT (CLIPPER2_USINGZ STREQUAL "ONLY"))
     Clipper2
     PUBLIC CLIPPER2_MAX_PRECISION=${CLIPPER2_MAX_PRECISION}
   )
+  
+  target_compile_options(Clipper2 PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-gencode arch=compute_75,code=sm_75>)
 
 set_target_properties(Clipper2
    PROPERTIES
