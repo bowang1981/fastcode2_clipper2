@@ -1,3 +1,9 @@
+Important:
+1. Most of the final changes including the openmp implemented are incuded in the cuda folder. Our testing is based on the folder.
+2. The openmp has some study that we have done and inclluded in the mid-term report.
+3. We need to use gcc10 and cuda-11.4 to build the cuda folder.
+4. Must use cmake3, not the default cmake.
+
 How to build this on ECE machines.
 Steps to build baseline(or cuda or openmp, just replace baseline with cuda or openmp in the following steps)
 1. Switch to the new compiler with the following command: 
