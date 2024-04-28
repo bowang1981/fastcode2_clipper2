@@ -7,9 +7,14 @@
 
 
 namespace AreaCalcTest {
+<<<<<<< HEAD
     void benchmark_cuda();
     void benchmark_omp();
-
+=======
+    void DoTestAreaCalc();
+    // void DoTestAreaCalc2();
+    // void DoTestAreaCalc3();
+>>>>>>> origin/david_area
 };
 
 

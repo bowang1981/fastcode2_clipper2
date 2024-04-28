@@ -5,13 +5,13 @@
 #include "AreaCalcTest.h"
 #include "TestGenerator.h"
 #include "clipper2/clipper.cuh"
-#include "clipper2/clipper_openmp.h"
 #include "../../Utils/Timer.h"
 
 using namespace Clipper2Lib;
 using namespace std;
 
 namespace AreaCalcTest {
+<<<<<<< HEAD
     void benchmark_cuda() {
         Path64 subject = TestGenerator::MakeNoSelfIntesectPolygon(50000000, 50000000, 5000000);
         {
@@ -28,23 +28,31 @@ namespace AreaCalcTest {
             cout << "Area(Baseline: " << setprecision(10) << Clipper2Lib::Area(subject) << std::endl;
             std::cout << "Baseline Area on complex polygons: " << t1.elapsed_str() << std::endl;
             }
+=======
+    void DoTestAreaCalc() {
+        Path64 subject = TestGenerator::MakeNoSelfIntesectPolygon(500000, 50000, 400000);
 
-            std::vector<int> nums = { 2, 4, 8, 16, 32, 40, 48, 64};
-            for (auto num : nums)
-            {
-                std::cout << "start calc  area(openmp)" << std::endl;
-                Timer t;
-
-                double area = Clipper2Lib::Area_OpenMP(subject, num);
-                std::cout << "threadnum [" << num << "]: Area_openMP on complex polygon: " << t.elapsed_str() << std::endl;
-                cout << "Area: " << setprecision(10)<< area << std::endl;
-            }
-
+        {
+            std::cout << "start calc area (original)" << std::endl;
+            Timer t;
+            double area = Clipper2Lib::Area(subject);
+            std::cout << "Area on complex polygons: " << t.elapsed_str() << std::endl;
+            cout << "Area: " << setprecision(10) << area << std::endl;
         }
+        {
+            std::cout << "start calc area (CUDA)" << std::endl;
+            Timer t;
+
+            double area = Clipper2Lib::area_single(subject);
+            std::cout << "Area on complex polygons: " << t.elapsed_str() << std::endl;
+            cout << "Area: " << setprecision(10) << area << std::endl;
+>>>>>>> origin/david_area
+        }
+
+
     }
 
-    void benchmark_omp() {
-    	/*
+    void benchmark_omp() {/*
         std::cout << "Test Area Calculation on a set of polygons" << std::endl;
         Paths64 subjects = TestGenerator::MakeNoSelfIntesectPolygons(1000, 500000, 50000, 20000);
         {

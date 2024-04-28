@@ -51,14 +51,20 @@ double area_single(const Path64& path) {
     }
     p1->init(path, points);
 
-
+<<<<<<< HEAD
 	double* res;
 	cudaMallocManaged(&res, sizeof(double));
 
+	area<<<1, 32>>>(p1, res);
 	cudaDeviceSynchronize();
+=======
+	float* res;
+>>>>>>> origin/david_area
+
+	cudaMallocManaged(&res, sizeof(float));
     {
         Timer t1;
-	    area<<<1, 32>>>(p1, res);
+	    area<<<1, 10>>>(p1, res);
 	    cudaDeviceSynchronize();
         std::cout << "CUDA: Kernel Run time: "<< t1.elapsed_str() << std::endl;
     }
