@@ -12,16 +12,24 @@ using namespace std;
 
 namespace AreaCalcTest {
     void DoTestAreaCalc() {
-        Path64 subject = TestGenerator::MakeNoSelfIntesectPolygon(5000000, 50000, 5000);
+        Path64 subject = TestGenerator::MakeNoSelfIntesectPolygon(500000, 50000, 400000);
+
         {
-            std::cout << "start calc  area" << std::endl;
+            std::cout << "start calc area (original)" << std::endl;
+            Timer t;
+            double area = Clipper2Lib::Area(subject);
+            std::cout << "Area on complex polygons: " << t.elapsed_str() << std::endl;
+            cout << "Area: " << setprecision(10) << area << std::endl;
+        }
+        {
+            std::cout << "start calc area (CUDA)" << std::endl;
             Timer t;
 
             double area = Clipper2Lib::area_single(subject);
             std::cout << "Area on complex polygons: " << t.elapsed_str() << std::endl;
             cout << "Area: " << setprecision(10) << area << std::endl;
-            cout << "Area(Baseline: " << setprecision(10) << Clipper2Lib::Area(subject) << std::endl;
         }
+
 
     }
 
@@ -53,7 +61,7 @@ namespace AreaCalcTest {
 
   
 
-        Paths64 subjects  = TestGenerator::MakeNoSelfIntesectPolygons(500000, 5000000, 50000, 500); 
+        Paths64 subjects  = TestGenerator::MakeNoSelfIntesectPolygons(500000, 5000000, 50000, 200); 
         {
             std::cout << "\nStart DoTestAreaCalc3 (original implementation)" << std::endl;
             Timer t;

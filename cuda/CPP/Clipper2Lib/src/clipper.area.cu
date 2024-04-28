@@ -1,6 +1,7 @@
 #include "clipper2/clipper.area.cuh"
 #include "clipper2/clipper.cuh"
 #include "clipper2/clipper.core.cuh"
+#include "../../Utils/Timer.h"
 
 namespace Clipper2Lib {
 
@@ -51,11 +52,14 @@ float area_single(const Path64& path) {
     p1->init(path, points);
 
 	float* res;
+
 	cudaMallocManaged(&res, sizeof(float));
-
-	area<<<1, 10>>>(p1, res);
-	cudaDeviceSynchronize();
-
+    {
+        Timer t1;
+	    area<<<1, 10>>>(p1, res);
+	    cudaDeviceSynchronize();
+        std::cout << "CUDA: Kernel Run time: "<< t1.elapsed_str() << std::endl;
+    }
 	if (cnt & 1)
 	      *res = *res + static_cast<double>(path[cnt-2].y + path[cnt-1].y) * (path[cnt-2].x - path[cnt-1].x);
 	float area1 = (*res) * 0.5;
@@ -115,8 +119,13 @@ float area_paths(const Paths64& paths)
     float* res;
     cudaMallocManaged(&res, sizeof(float));
 
-    area_paths_kernel<<<1, 10>>>(cu_paths, res);
-    cudaDeviceSynchronize();
+    {
+        Timer t;
+        area_paths_kernel<<<1, 10>>>(cu_paths, res);
+        cudaDeviceSynchronize();
+        std::cout << "CUDA: Kernel Run time: "
+            << t.elapsed_str() << std::endl;
+    }
 
     float total_area = *res;
     cudaFree(res);
